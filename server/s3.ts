@@ -1,4 +1,5 @@
 import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import { CloudFrontClient, CreateDistributionCommand, GetDistributionCommand } from '@aws-sdk/client-cloudfront';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { nanoid } from 'nanoid';
 
@@ -11,7 +12,18 @@ const s3Client = new S3Client({
   },
 });
 
+// Initialize CloudFront client
+const cloudFrontClient = new CloudFrontClient({
+  region: 'us-east-1', // CloudFront is global but requires us-east-1
+  credentials: {
+    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+  },
+});
+
 const BUCKET_NAME = process.env.S3_BUCKET_NAME!;
+// CloudFront domain - can be set via secrets
+const CLOUDFRONT_DOMAIN = process.env.CLOUDFRONT_DOMAIN || null;
 
 export class S3Service {
   // Upload video to S3
@@ -194,6 +206,84 @@ export class S3Service {
     } catch (error) {
       console.error('Error generating presigned view URL:', error);
       throw new Error('Failed to generate presigned view URL');
+    }
+  }
+
+  // CloudFront Methods
+  static async createCloudFrontDistribution(): Promise<string> {
+    try {
+      const distributionConfig = {
+        CallerReference: `tiktok-app-${Date.now()}`,
+        Comment: 'CloudFront distribution for TikTok app videos',
+        DefaultCacheBehavior: {
+          TargetOriginId: `S3-${BUCKET_NAME}`,
+          ViewerProtocolPolicy: 'redirect-to-https',
+          TrustedSigners: {
+            Enabled: false,
+            Quantity: 0,
+          },
+          ForwardedValues: {
+            QueryString: false,
+            Cookies: {
+              Forward: 'none',
+            },
+          },
+          MinTTL: 0,
+          DefaultTTL: 86400, // 1 day
+          MaxTTL: 31536000, // 1 year
+        },
+        Origins: {
+          Quantity: 1,
+          Items: [
+            {
+              Id: `S3-${BUCKET_NAME}`,
+              DomainName: `${BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com`,
+              S3OriginConfig: {
+                OriginAccessIdentity: '',
+              },
+            },
+          ],
+        },
+        Enabled: true,
+      };
+
+      const command = new CreateDistributionCommand({
+        DistributionConfig: distributionConfig,
+      });
+
+      const response = await cloudFrontClient.send(command);
+      const distributionDomain = response.Distribution?.DomainName;
+      
+      console.log('CloudFront distribution created:', distributionDomain);
+      return distributionDomain || '';
+    } catch (error) {
+      console.error('Error creating CloudFront distribution:', error);
+      throw new Error('Failed to create CloudFront distribution');
+    }
+  }
+
+  // Get CloudFront URL for video
+  static getCloudFrontUrl(s3Key: string): string {
+    if (!CLOUDFRONT_DOMAIN) {
+      console.warn('CloudFront domain not configured, falling back to S3 URL');
+      return `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${s3Key}`;
+    }
+    return `https://${CLOUDFRONT_DOMAIN}/${s3Key}`;
+  }
+
+  // Test CloudFront distribution
+  static async testCloudFrontAccess(s3Key: string): Promise<boolean> {
+    try {
+      if (!CLOUDFRONT_DOMAIN) {
+        return false;
+      }
+      
+      const cloudFrontUrl = this.getCloudFrontUrl(s3Key);
+      const response = await fetch(cloudFrontUrl, { method: 'HEAD' });
+      return response.ok;
+    } catch (error) {
+      console.error('CloudFront access test failed:', error);
+      return false;
     }
   }
 }

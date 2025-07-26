@@ -132,7 +132,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Get presigned URL for video viewing
+  // Get video URL (CloudFront or fallback)
   app.post('/api/get-video-url', async (req: any, res) => {
     try {
       const { s3Key, videoUrl } = req.body;
@@ -141,15 +141,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "s3Key or videoUrl is required" });
       }
       
-      // If we already have a video URL, return it
-      if (videoUrl && videoUrl.startsWith('http')) {
+      // If we already have a video URL that's not from S3, return it
+      if (videoUrl && videoUrl.startsWith('http') && !videoUrl.includes('s3.amazonaws.com')) {
         return res.json({ url: videoUrl });
       }
       
-      // Generate presigned URL for S3 video
+      // Use CloudFront URL for S3 videos
       if (s3Key) {
-        const presignedUrl = await S3Service.getPresignedViewUrl(s3Key);
-        return res.json({ url: presignedUrl });
+        const cloudFrontUrl = S3Service.getCloudFrontUrl(s3Key);
+        console.log('Serving video via CloudFront:', cloudFrontUrl);
+        return res.json({ url: cloudFrontUrl });
       }
       
       res.status(400).json({ message: "Unable to generate video URL" });
@@ -355,6 +356,37 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error toggling follow:", error);
       res.status(500).json({ message: "Failed to toggle follow" });
+    }
+  });
+
+  // Create CloudFront distribution (admin endpoint)
+  app.post('/api/admin/create-cloudfront', async (req, res) => {
+    try {
+      const distributionDomain = await S3Service.createCloudFrontDistribution();
+      res.json({ 
+        message: 'CloudFront distribution created successfully',
+        domain: distributionDomain,
+        note: 'Please set CLOUDFRONT_DOMAIN environment variable to: ' + distributionDomain
+      });
+    } catch (error) {
+      console.error('Error creating CloudFront distribution:', error);
+      res.status(500).json({ message: 'Failed to create CloudFront distribution' });
+    }
+  });
+
+  // Test CloudFront access (admin endpoint)
+  app.post('/api/admin/test-cloudfront', async (req, res) => {
+    try {
+      const { s3Key } = req.body;
+      const isAccessible = await S3Service.testCloudFrontAccess(s3Key || 'videos/demo/demo-test.mp4');
+      res.json({ 
+        accessible: isAccessible,
+        cloudFrontDomain: process.env.CLOUDFRONT_DOMAIN || 'Not configured',
+        testUrl: S3Service.getCloudFrontUrl(s3Key || 'videos/demo/demo-test.mp4')
+      });
+    } catch (error) {
+      console.error('Error testing CloudFront access:', error);
+      res.status(500).json({ message: 'Failed to test CloudFront access' });
     }
   });
 

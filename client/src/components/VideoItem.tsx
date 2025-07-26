@@ -87,7 +87,7 @@ export default function VideoItem({ video, isActive }: VideoItemProps) {
       if (video.s3Key) {
         setLoadingVideo(true);
         try {
-          console.log('Fetching presigned URL for S3 key:', video.s3Key);
+          console.log('Fetching CloudFront URL for S3 key:', video.s3Key);
           const response = await fetch('/api/get-video-url', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -100,7 +100,7 @@ export default function VideoItem({ video, isActive }: VideoItemProps) {
           
           if (response.ok) {
             const data = await response.json();
-            console.log('Received presigned URL:', data.url);
+            console.log('Received CloudFront/S3 URL:', data.url);
             setVideoUrl(data.url);
             setVideoError('');
           } else {
