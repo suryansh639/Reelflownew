@@ -141,7 +141,19 @@ export default function VideoItem({ video, isActive }: VideoItemProps) {
     };
 
     if (isPlaying) {
-      videoElement.play();
+      const playPromise = videoElement.play();
+      if (playPromise !== undefined) {
+        playPromise.catch((error) => {
+          // Ignore common video playback interruption errors
+          if (error.name === 'AbortError' || 
+              error.message.includes('interrupted') ||
+              error.message.includes('removed from the document')) {
+            console.log('Video play interrupted, ignoring error');
+            return;
+          }
+          console.error('Video play error:', error);
+        });
+      }
     } else {
       videoElement.pause();
     }

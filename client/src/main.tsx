@@ -12,7 +12,9 @@ if (typeof window !== 'undefined') {
       // Suppress specific errors that don't affect functionality
       if (message.includes('Failed to load because no supported source was found') ||
           message.includes('The element has no supported sources') ||
-          message.includes('runtime-error-plugin')) {
+          message.includes('runtime-error-plugin') ||
+          message.includes('The play() request was interrupted') ||
+          message.includes('media was removed from the document')) {
         return;
       }
     }
@@ -24,6 +26,21 @@ if (typeof window !== 'undefined') {
     if (event.reason && event.reason.message) {
       const message = event.reason.message;
       if (message.includes('The element has no supported sources') ||
+          message.includes('runtime-error-plugin') ||
+          message.includes('The play() request was interrupted') ||
+          message.includes('media was removed from the document')) {
+        event.preventDefault();
+        return;
+      }
+    }
+  });
+  
+  // Handle regular errors as well
+  window.addEventListener('error', (event) => {
+    if (event.message) {
+      const message = event.message;
+      if (message.includes('The play() request was interrupted') ||
+          message.includes('media was removed from the document') ||
           message.includes('runtime-error-plugin')) {
         event.preventDefault();
         return;
