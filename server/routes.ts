@@ -250,6 +250,69 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Sync existing S3 videos to database
+  app.post('/api/admin/sync-s3-videos', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = (req.user as any)?.claims?.sub;
+      console.log('Starting S3 videos sync process...');
+      
+      // List all videos in S3
+      const s3Videos = await S3Service.listS3Videos();
+      console.log(`Found ${s3Videos.length} videos in S3`);
+      
+      const syncedVideos = [];
+      const skippedVideos = [];
+      
+      for (const s3Video of s3Videos) {
+        try {
+          // Check if video already exists in database
+          const existingVideo = await storage.getVideoByS3Key(s3Video.key);
+          if (existingVideo) {
+            skippedVideos.push({ key: s3Video.key, reason: 'Already exists in database' });
+            continue;
+          }
+          
+          // Get metadata from S3
+          const metadata = await S3Service.getS3VideoMetadata(s3Video.key);
+          
+          // Extract filename for title
+          const fileName = s3Video.key.split('/').pop()?.split('.')[0] || 'Untitled';
+          const title = fileName.replace(/[_-]/g, ' ').replace(/\b\w/g, l => l.toUpperCase());
+          
+          // Create video record
+          const videoData = insertVideoSchema.parse({
+            title: title,
+            description: `Video imported from S3`,
+            videoUrl: s3Video.url,
+            musicTitle: 'Original Sound',
+            isPublic: true,
+            userId: userId,
+            s3Key: s3Video.key
+          });
+          
+          const savedVideo = await storage.createVideo(videoData);
+          syncedVideos.push(savedVideo);
+          console.log(`Synced video: ${title}`);
+        } catch (error) {
+          console.error(`Error syncing video ${s3Video.key}:`, error);
+          skippedVideos.push({ key: s3Video.key, reason: (error as Error).message });
+        }
+      }
+      
+      res.json({ 
+        message: 'S3 videos sync completed',
+        total: s3Videos.length,
+        synced: syncedVideos.length,
+        skipped: skippedVideos.length,
+        syncedVideos: syncedVideos,
+        skippedVideos: skippedVideos
+      });
+    } catch (error) {
+      console.error('Error syncing S3 videos:', error);
+      res.status(500).json({ message: 'Failed to sync S3 videos' });
+    }
+  });
+
   app.post('/api/videos/:id/view', async (req, res) => {
     try {
       const { id } = req.params;

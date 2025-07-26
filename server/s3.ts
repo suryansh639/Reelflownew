@@ -217,7 +217,7 @@ export class S3Service {
         Comment: 'CloudFront distribution for TikTok app videos',
         DefaultCacheBehavior: {
           TargetOriginId: `S3-${BUCKET_NAME}`,
-          ViewerProtocolPolicy: 'redirect-to-https',
+          ViewerProtocolPolicy: 'redirect-to-https' as const,
           TrustedSigners: {
             Enabled: false,
             Quantity: 0,
@@ -293,7 +293,7 @@ export class S3Service {
       clearTimeout(timeoutId);
       return response.ok;
     } catch (error) {
-      console.log('CloudFront not ready yet (DNS propagation):', error.message);
+      console.log('CloudFront not ready yet (DNS propagation):', (error as Error).message);
       return false;
     }
   }
@@ -312,6 +312,61 @@ export class S3Service {
     } catch (error) {
       console.error('Error getting distribution info:', error);
       throw error;
+    }
+  }
+
+  // List all videos in S3 bucket
+  static async listS3Videos(): Promise<Array<{ key: string; url: string; size?: number; lastModified?: Date }>> {
+    try {
+      const { ListObjectsV2Command } = await import('@aws-sdk/client-s3');
+      const command = new ListObjectsV2Command({
+        Bucket: BUCKET_NAME,
+        Prefix: 'videos/', // Only list files in videos/ folder
+      });
+
+      const response = await s3Client.send(command);
+      const videos: Array<{ key: string; url: string; size?: number; lastModified?: Date }> = [];
+
+      if (response.Contents) {
+        for (const object of response.Contents) {
+          if (object.Key && object.Key.match(/\.(mp4|mov|avi|mkv|webm)$/i)) {
+            videos.push({
+              key: object.Key,
+              url: `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${object.Key}`,
+              size: object.Size,
+              lastModified: object.LastModified
+            });
+          }
+        }
+      }
+
+      console.log(`Found ${videos.length} videos in S3 bucket`);
+      return videos;
+    } catch (error) {
+      console.error('Error listing S3 videos:', error);
+      throw new Error('Failed to list S3 videos');
+    }
+  }
+
+  // Get video metadata from S3 object metadata
+  static async getS3VideoMetadata(key: string): Promise<any> {
+    try {
+      const { HeadObjectCommand } = await import('@aws-sdk/client-s3');
+      const command = new HeadObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: key,
+      });
+
+      const response = await s3Client.send(command);
+      return {
+        contentType: response.ContentType,
+        contentLength: response.ContentLength,
+        lastModified: response.LastModified,
+        metadata: response.Metadata || {}
+      };
+    } catch (error) {
+      console.error('Error getting S3 video metadata:', error);
+      return null;
     }
   }
 }

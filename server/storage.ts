@@ -31,6 +31,7 @@ export interface IStorage {
   getUserVideos(userId: string, limit?: number, offset?: number): Promise<VideoWithUser[]>;
   createVideo(video: InsertVideo): Promise<Video>;
   incrementViewCount(videoId: string): Promise<void>;
+  getVideoByS3Key(s3Key: string): Promise<Video | undefined>;
   
   // Like operations
   likeVideo(userId: string, videoId: string): Promise<Like>;
@@ -211,6 +212,14 @@ export class DatabaseStorage implements IStorage {
         viewCount: sql`${videos.viewCount} + 1`,
       })
       .where(eq(videos.id, videoId));
+  }
+
+  async getVideoByS3Key(s3Key: string): Promise<Video | undefined> {
+    const [video] = await db
+      .select()
+      .from(videos)
+      .where(eq(videos.s3Key, s3Key));
+    return video;
   }
 
   // Like operations
