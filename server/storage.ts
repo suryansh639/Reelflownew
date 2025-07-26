@@ -28,6 +28,7 @@ export interface IStorage {
   // Video operations
   getVideos(userId?: string, limit?: number, offset?: number): Promise<VideoWithUser[]>;
   getVideo(id: string, userId?: string): Promise<VideoWithUser | undefined>;
+  getUserVideos(userId: string, limit?: number, offset?: number): Promise<VideoWithUser[]>;
   createVideo(video: InsertVideo): Promise<Video>;
   incrementViewCount(videoId: string): Promise<void>;
   
@@ -72,6 +73,48 @@ export class DatabaseStorage implements IStorage {
   }
 
   // Video operations
+  async getUserVideos(userId: string, limit = 50, offset = 0): Promise<VideoWithUser[]> {
+    const result = await db
+      .select({
+        id: videos.id,
+        userId: videos.userId,
+        title: videos.title,
+        description: videos.description,
+        videoUrl: videos.videoUrl,
+        thumbnailUrl: videos.thumbnailUrl,
+        duration: videos.duration,
+        viewCount: videos.viewCount,
+        likeCount: videos.likeCount,
+        commentCount: videos.commentCount,
+        shareCount: videos.shareCount,
+        musicTitle: videos.musicTitle,
+        isPublic: videos.isPublic,
+        createdAt: videos.createdAt,
+        updatedAt: videos.updatedAt,
+        user: {
+          id: users.id,
+          email: users.email,
+          firstName: users.firstName,
+          lastName: users.lastName,
+          profileImageUrl: users.profileImageUrl,
+          username: users.username,
+          createdAt: users.createdAt,
+          updatedAt: users.updatedAt,
+        },
+        likes: sql<any[]>`'[]'::json`,
+        comments: sql<any[]>`'[]'::json`,
+        isLiked: sql<boolean>`false`,
+      })
+      .from(videos)
+      .innerJoin(users, eq(videos.userId, users.id))
+      .where(and(eq(videos.userId, userId), eq(videos.isPublic, true)))
+      .orderBy(desc(videos.createdAt))
+      .limit(limit)
+      .offset(offset);
+
+    return result as VideoWithUser[];
+  }
+
   async getVideos(userId?: string, limit = 20, offset = 0): Promise<VideoWithUser[]> {
     const videosWithUsers = await db
       .select({

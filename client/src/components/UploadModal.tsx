@@ -115,16 +115,25 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
       return;
     }
 
-    // In a real implementation, you would upload to S3 here
-    // For now, we'll use a placeholder URL
-    const videoUrl = "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4";
+    // Sample video URLs for demo purposes
+    const sampleVideos = [
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
+      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4"
+    ];
+    
+    // In a real implementation, you would upload to S3/CDN here
+    // For demo, we'll use a random sample video
+    const videoUrl = sampleVideos[Math.floor(Math.random() * sampleVideos.length)];
 
     uploadMutation.mutate({
-      title: title || selectedFile.name,
-      description,
+      title: title || selectedFile.name.replace(/\.[^/.]+$/, ""),
+      description: description || "Check out my new video!",
       videoUrl,
       isPublic: privacy === "public",
-      musicTitle: musicTitle || undefined,
+      musicTitle: musicTitle || "Original Sound",
     });
   };
 

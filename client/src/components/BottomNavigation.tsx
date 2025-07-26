@@ -1,15 +1,21 @@
 import { useState } from "react";
+import { useLocation } from "wouter";
 import { Home, Compass, Plus, Inbox, User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import UploadModal from "./UploadModal";
 
 export default function BottomNavigation() {
-  const [activeTab, setActiveTab] = useState("home");
+  const [location, setLocation] = useLocation();
   const [showUpload, setShowUpload] = useState(false);
 
-  const handleLogout = () => {
-    window.location.href = "/api/logout";
+  const getActiveTab = () => {
+    if (location === "/") return "home";
+    if (location === "/discover") return "discover";
+    if (location === "/profile") return "profile";
+    return "home";
   };
+
+  const activeTab = getActiveTab();
 
   return (
     <>
@@ -20,7 +26,7 @@ export default function BottomNavigation() {
             className={`flex flex-col items-center space-y-1 py-3 px-2 ${
               activeTab === "home" ? "text-white" : "text-tiktok-gray"
             }`}
-            onClick={() => setActiveTab("home")}
+            onClick={() => setLocation("/")}
           >
             <Home className="w-6 h-6" />
             <span className="text-xs">Home</span>
@@ -31,7 +37,7 @@ export default function BottomNavigation() {
             className={`flex flex-col items-center space-y-1 py-3 px-2 ${
               activeTab === "discover" ? "text-white" : "text-tiktok-gray"
             }`}
-            onClick={() => setActiveTab("discover")}
+            onClick={() => setLocation("/discover")}
           >
             <Compass className="w-6 h-6" />
             <span className="text-xs">Discover</span>
@@ -53,7 +59,7 @@ export default function BottomNavigation() {
             className={`flex flex-col items-center space-y-1 py-3 px-2 ${
               activeTab === "inbox" ? "text-white" : "text-tiktok-gray"
             }`}
-            onClick={() => setActiveTab("inbox")}
+            onClick={() => alert("Inbox feature coming soon!")}
           >
             <Inbox className="w-6 h-6" />
             <span className="text-xs">Inbox</span>
@@ -64,7 +70,7 @@ export default function BottomNavigation() {
             className={`flex flex-col items-center space-y-1 py-3 px-2 ${
               activeTab === "profile" ? "text-white" : "text-tiktok-gray"
             }`}
-            onClick={handleLogout}
+            onClick={() => setLocation("/profile")}
           >
             <User className="w-6 h-6" />
             <span className="text-xs">Profile</span>

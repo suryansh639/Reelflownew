@@ -87,7 +87,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/videos/:id/like', isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any)?.claims?.sub;
       
       const isLiked = await storage.isVideoLiked(userId, id);
       
@@ -122,7 +122,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.post('/api/videos/:id/comments', isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any)?.claims?.sub;
       
       const commentData = insertCommentSchema.parse({
         ...req.body,
@@ -141,11 +141,26 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // User video routes
+  app.get('/api/videos/user/:userId', async (req, res) => {
+    try {
+      const { userId } = req.params;
+      const limit = parseInt(req.query.limit as string) || 50;
+      const offset = parseInt(req.query.offset as string) || 0;
+      
+      const videos = await storage.getUserVideos(userId, limit, offset);
+      res.json(videos);
+    } catch (error) {
+      console.error("Error fetching user videos:", error);
+      res.status(500).json({ message: "Failed to fetch user videos" });
+    }
+  });
+
   // Follow routes
   app.post('/api/users/:id/follow', isAuthenticated, async (req: any, res) => {
     try {
       const { id } = req.params;
-      const followerId = req.user.claims.sub;
+      const followerId = (req.user as any)?.claims?.sub;
       
       if (followerId === id) {
         return res.status(400).json({ message: "Cannot follow yourself" });
