@@ -77,7 +77,8 @@ export class S3Service {
       Bucket: BUCKET_NAME,
       Key: key,
       ContentType: fileType,
-      // Use bucket policy for permissions instead of ACL
+      // Add public tag for bucket policy
+      Tagging: 'public=true',
       Metadata: {
         'uploaded-by': userId,
         'upload-date': new Date().toISOString()
@@ -121,8 +122,13 @@ export class S3Service {
             Sid: "PublicReadGetObject",
             Effect: "Allow",
             Principal: "*",
-            Action: "s3:GetObject",
-            Resource: `arn:aws:s3:::${BUCKET_NAME}/videos/*`
+            Action: ["s3:GetObject", "s3:GetObjectVersion"],
+            Resource: `arn:aws:s3:::${BUCKET_NAME}/*`,
+            Condition: {
+              StringEquals: {
+                "s3:ExistingObjectTag/public": "true"
+              }
+            }
           }
         ]
       };

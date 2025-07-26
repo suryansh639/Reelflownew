@@ -110,7 +110,15 @@ export default function VideoItem({ video, isActive }: VideoItemProps) {
           }
         } catch (error) {
           console.error('Error fetching video URL:', error);
-          setVideoError('Failed to load video - S3 error');
+          console.error('S3 key:', video.s3Key);
+          console.error('Original video URL:', video.videoUrl);
+          // Fallback to original video URL if presigned fails  
+          if (video.videoUrl) {
+            setVideoUrl(video.videoUrl);
+            setVideoError('Using original video URL');
+          } else {
+            setVideoError('Failed to load video - no URL available');
+          }
         } finally {
           setLoadingVideo(false);
         }
