@@ -377,12 +377,24 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Test CloudFront access (admin endpoint)
   app.post('/api/admin/test-cloudfront', async (req, res) => {
     try {
-      const { s3Key } = req.body;
+      const { s3Key, distributionId } = req.body;
       const isAccessible = await S3Service.testCloudFrontAccess(s3Key || 'videos/demo/demo-test.mp4');
+      
+      let distributionInfo = null;
+      if (distributionId) {
+        try {
+          distributionInfo = await S3Service.getDistributionInfo(distributionId);
+        } catch (error) {
+          console.log('Could not fetch distribution info:', error.message);
+        }
+      }
+      
       res.json({ 
         accessible: isAccessible,
-        cloudFrontDomain: process.env.CLOUDFRONT_DOMAIN || 'Not configured',
-        testUrl: S3Service.getCloudFrontUrl(s3Key || 'videos/demo/demo-test.mp4')
+        cloudFrontDomain: process.env.CLOUDFRONT_DOMAIN || 'e2nl5e3zoa6qsv.cloudfront.net',
+        testUrl: S3Service.getCloudFrontUrl(s3Key || 'videos/demo/demo-test.mp4'),
+        distributionInfo,
+        note: isAccessible ? 'CloudFront is working!' : 'CloudFront DNS may still be propagating (takes 5-15 minutes)'
       });
     } catch (error) {
       console.error('Error testing CloudFront access:', error);

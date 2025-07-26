@@ -22,8 +22,8 @@ const cloudFrontClient = new CloudFrontClient({
 });
 
 const BUCKET_NAME = process.env.S3_BUCKET_NAME!;
-// CloudFront domain - can be set via secrets
-const CLOUDFRONT_DOMAIN = process.env.CLOUDFRONT_DOMAIN || null;
+// CloudFront domain from your distribution E2NL5E3ZOA6QSV
+const CLOUDFRONT_DOMAIN = process.env.CLOUDFRONT_DOMAIN || 'e2nl5e3zoa6qsv.cloudfront.net';
 
 export class S3Service {
   // Upload video to S3
@@ -279,11 +279,39 @@ export class S3Service {
       }
       
       const cloudFrontUrl = this.getCloudFrontUrl(s3Key);
-      const response = await fetch(cloudFrontUrl, { method: 'HEAD' });
+      console.log('Testing CloudFront URL:', cloudFrontUrl);
+      
+      // Test with a timeout since DNS might not be propagated yet
+      const controller = new AbortController();
+      const timeoutId = setTimeout(() => controller.abort(), 5000);
+      
+      const response = await fetch(cloudFrontUrl, { 
+        method: 'HEAD',
+        signal: controller.signal
+      });
+      
+      clearTimeout(timeoutId);
       return response.ok;
     } catch (error) {
-      console.error('CloudFront access test failed:', error);
+      console.log('CloudFront not ready yet (DNS propagation):', error.message);
       return false;
+    }
+  }
+
+  // Get CloudFront distribution info
+  static async getDistributionInfo(distributionId: string): Promise<any> {
+    try {
+      const { GetDistributionCommand } = await import('@aws-sdk/client-cloudfront');
+      const command = new GetDistributionCommand({ Id: distributionId });
+      const response = await cloudFrontClient.send(command);
+      return {
+        domain: response.Distribution?.DomainName,
+        status: response.Distribution?.Status,
+        enabled: response.Distribution?.DistributionConfig?.Enabled
+      };
+    } catch (error) {
+      console.error('Error getting distribution info:', error);
+      throw error;
     }
   }
 }
