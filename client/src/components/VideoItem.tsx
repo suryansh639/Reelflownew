@@ -83,9 +83,11 @@ export default function VideoItem({ video, isActive }: VideoItemProps) {
   // Fetch proper video URL if needed
   useEffect(() => {
     const fetchVideoUrl = async () => {
-      if (video.s3Key && (!videoUrl || videoUrl.includes('amazonaws.com'))) {
+      // Always fetch presigned URL for S3 videos
+      if (video.s3Key) {
         setLoadingVideo(true);
         try {
+          console.log('Fetching presigned URL for S3 key:', video.s3Key);
           const response = await fetch('/api/get-video-url', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
@@ -98,22 +100,28 @@ export default function VideoItem({ video, isActive }: VideoItemProps) {
           
           if (response.ok) {
             const data = await response.json();
+            console.log('Received presigned URL:', data.url);
             setVideoUrl(data.url);
             setVideoError('');
           } else {
+            const errorText = await response.text();
+            console.error('Failed to get video URL:', errorText);
             throw new Error('Failed to get video URL');
           }
         } catch (error) {
           console.error('Error fetching video URL:', error);
-          setVideoError('Failed to load video');
+          setVideoError('Failed to load video - S3 error');
         } finally {
           setLoadingVideo(false);
         }
+      } else {
+        // For non-S3 videos, use the direct URL
+        setVideoUrl(video.videoUrl);
       }
     };
     
     fetchVideoUrl();
-  }, [video.s3Key, video.videoUrl, videoUrl]);
+  }, [video.s3Key, video.videoUrl]);
 
   useEffect(() => {
     if (isActive && videoRef.current) {
