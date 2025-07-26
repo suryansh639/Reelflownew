@@ -113,8 +113,9 @@ export class S3Service {
         CORSRules: [
           {
             AllowedOrigins: ['*'], // In production, replace with your domain
-            AllowedMethods: ['PUT', 'POST', 'GET'],
+            AllowedMethods: ['PUT', 'POST', 'GET', 'HEAD'],
             AllowedHeaders: ['*'],
+            ExposeHeaders: ['ETag'],
             MaxAgeSeconds: 3600
           }
         ]

@@ -36,56 +36,87 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
       musicTitle?: string;
     }) => {
       if (data.videoFile) {
-        // Use presigned URL for direct S3 upload
         const file = data.videoFile;
         
-        // Step 1: Get presigned URL
-        const presignedResponse = await fetch("/api/generate-presigned-url", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            fileName: file.name,
-            fileType: file.type,
-          }),
-        });
-        
-        if (!presignedResponse.ok) {
-          throw new Error("Failed to get upload URL");
+        try {
+          // Try direct S3 upload first
+          console.log("Attempting direct S3 upload...");
+          
+          // Step 1: Get presigned URL
+          const presignedResponse = await fetch("/api/generate-presigned-url", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              fileName: file.name,
+              fileType: file.type,
+            }),
+          });
+          
+          if (!presignedResponse.ok) {
+            throw new Error("Failed to get upload URL");
+          }
+          
+          const { uploadUrl, publicUrl, key } = await presignedResponse.json();
+          
+          // Step 2: Upload directly to S3
+          console.log("Uploading to S3 URL:", uploadUrl);
+          const uploadResponse = await fetch(uploadUrl, {
+            method: "PUT",
+            body: file,
+            headers: {
+              "Content-Type": file.type,
+            },
+            mode: 'cors',
+          });
+          
+          console.log("S3 upload response status:", uploadResponse.status);
+          if (!uploadResponse.ok) {
+            const errorText = await uploadResponse.text();
+            console.error("S3 upload error:", errorText);
+            throw new Error(`Direct S3 upload failed: ${uploadResponse.status}`);
+          }
+          
+          console.log("✅ Direct S3 upload successful");
+          
+          // Step 3: Save metadata to database
+          return fetch("/api/videos/metadata", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            credentials: "include",
+            body: JSON.stringify({
+              title: data.title,
+              description: data.description,
+              videoUrl: publicUrl,
+              musicTitle: data.musicTitle,
+              isPublic: data.isPublic,
+              s3Key: key,
+            }),
+          }).then(res => {
+            if (!res.ok) throw new Error("Failed to save video metadata");
+            return res.json();
+          });
+          
+        } catch (directUploadError) {
+          console.warn("Direct S3 upload failed, falling back to server upload:", directUploadError);
+          
+          // Fallback: Upload through server (which will then upload to S3)
+          const formData = new FormData();
+          formData.append("title", data.title);
+          formData.append("description", data.description);
+          formData.append("isPublic", data.isPublic.toString());
+          if (data.musicTitle) formData.append("musicTitle", data.musicTitle);
+          formData.append("video", file);
+          
+          return fetch("/api/videos", {
+            method: "POST",
+            body: formData,
+            credentials: "include",
+          }).then(res => {
+            if (!res.ok) throw new Error("Server upload also failed");
+            return res.json();
+          });
         }
-        
-        const { uploadUrl, publicUrl, key } = await presignedResponse.json();
-        
-        // Step 2: Upload directly to S3
-        const uploadResponse = await fetch(uploadUrl, {
-          method: "PUT",
-          body: file,
-          headers: {
-            "Content-Type": file.type,
-          },
-        });
-        
-        if (!uploadResponse.ok) {
-          throw new Error("Failed to upload to S3");
-        }
-        
-        // Step 3: Save metadata to database
-        return fetch("/api/videos/metadata", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-          body: JSON.stringify({
-            title: data.title,
-            description: data.description,
-            videoUrl: publicUrl,
-            musicTitle: data.musicTitle,
-            isPublic: data.isPublic,
-            s3Key: key,
-          }),
-        }).then(res => {
-          if (!res.ok) throw new Error("Failed to save video metadata");
-          return res.json();
-        });
       } else {
         // Fallback to form upload for URL-based videos
         const formData = new FormData();
