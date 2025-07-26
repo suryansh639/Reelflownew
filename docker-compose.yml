@@ -12,6 +12,10 @@ services:
       - REPLIT_DOMAINS=localhost:5000
       - ISSUER_URL=https://replit.com/oidc
       - REPL_ID=tiktok-app
+      - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
+      - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
+      - AWS_REGION=${AWS_REGION}
+      - S3_BUCKET_NAME=${S3_BUCKET_NAME}
     depends_on:
       db:
         condition: service_healthy

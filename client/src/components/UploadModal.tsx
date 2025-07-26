@@ -194,7 +194,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
                   <Upload className="w-12 h-12 text-tiktok-gray mx-auto" />
                   <div>
                     <p className="text-tiktok-gray mb-2">Drag and drop your video here</p>
-                    <p className="text-sm text-tiktok-light-gray mb-4">MP4 files only, max 100MB</p>
+                    <p className="text-sm text-tiktok-light-gray mb-4">MP4, MOV, AVI files, max 500MB</p>
                     <Button 
                       type="button"
                       className="bg-tiktok-pink hover:bg-tiktok-pink/90"

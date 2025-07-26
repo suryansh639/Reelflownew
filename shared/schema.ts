@@ -52,6 +52,7 @@ export const videos = pgTable("videos", {
   shareCount: integer("share_count").default(0),
   musicTitle: text("music_title"),
   isPublic: boolean("is_public").default(true),
+  s3Key: text("s3_key"), // Store S3 object key for deletion
   createdAt: timestamp("created_at").defaultNow(),
   updatedAt: timestamp("updated_at").defaultNow(),
 });

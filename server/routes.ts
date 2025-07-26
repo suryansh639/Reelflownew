@@ -6,6 +6,7 @@ import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertVideoSchema, insertCommentSchema } from "@shared/schema";
 import { z } from "zod";
 import { upload } from "./multer";
+import { S3Service } from "./s3";
 import path from "path";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -61,9 +62,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const userId = (req.user as any)?.claims?.sub;
       
       let videoUrl: string;
+      let s3Key: string | undefined;
+      
       if (req.file) {
-        // If file was uploaded, serve it from our server
-        videoUrl = `/uploads/${req.file.filename}`;
+        // Upload file to S3
+        console.log('Uploading video to S3...', {
+          filename: req.file.originalname,
+          size: `${(req.file.size / (1024 * 1024)).toFixed(2)}MB`,
+          mimetype: req.file.mimetype
+        });
+        const s3Result = await S3Service.uploadVideo(req.file, userId);
+        videoUrl = s3Result.url;
+        s3Key = s3Result.key;
+        console.log('S3 upload successful:', { url: videoUrl, key: s3Key });
       } else if (req.body.videoUrl) {
         // If URL was provided, use it directly
         videoUrl = req.body.videoUrl;
@@ -75,6 +86,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         ...req.body,
         userId,
         videoUrl,
+        // Store S3 key for future deletion if needed
+        ...(s3Key && { s3Key }),
       });
       
       const video = await storage.createVideo(videoData);
@@ -88,13 +101,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Serve uploaded files
-  app.use('/uploads', (req, res, next) => {
-    res.header('Cross-Origin-Resource-Policy', 'cross-origin');
-    next();
+  // Health check endpoint for S3 connection
+  app.get('/api/health/s3', async (req, res) => {
+    try {
+      const isConnected = await S3Service.testConnection();
+      res.json({ 
+        s3Connected: isConnected,
+        bucket: process.env.S3_BUCKET_NAME,
+        region: process.env.AWS_REGION
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        s3Connected: false, 
+        error: 'S3 connection failed' 
+      });
+    }
   });
-  
-  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
   app.post('/api/videos/:id/view', async (req, res) => {
     try {
