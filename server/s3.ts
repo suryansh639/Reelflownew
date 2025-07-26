@@ -131,4 +131,23 @@ export class S3Service {
       console.error('Failed to configure S3 CORS:', error);
     }
   }
+
+  // Get presigned URL for viewing video
+  static async getPresignedViewUrl(s3Key: string): Promise<string> {
+    try {
+      const { getSignedUrl } = await import('@aws-sdk/s3-request-presigner');
+      const { GetObjectCommand } = await import('@aws-sdk/client-s3');
+      
+      const command = new GetObjectCommand({
+        Bucket: BUCKET_NAME,
+        Key: s3Key,
+      });
+      
+      const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+      return presignedUrl;
+    } catch (error) {
+      console.error('Error generating presigned view URL:', error);
+      throw new Error('Failed to generate presigned view URL');
+    }
+  }
 }

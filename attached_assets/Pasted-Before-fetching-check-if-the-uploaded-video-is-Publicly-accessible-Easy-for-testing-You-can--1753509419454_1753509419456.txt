@@ -1,0 +1,91 @@
+Before fetching, check if the uploaded video is:
+
+🔓 Publicly accessible (Easy for testing)
+You can use the public S3 object URL:
+
+php-template
+Copy
+Edit
+https://<your-bucket-name>.s3.<region>.amazonaws.com/<file-name>
+For example:
+
+html
+Copy
+Edit
+<video src="https://my-bucket.s3.ap-south-1.amazonaws.com/testvideo.mp4" controls></video>
+✅ Works instantly if:
+
+The S3 bucket policy or object ACL allows public access.
+
+🔐 Private (default) – Use Pre-signed URL to access
+If your bucket is private (recommended for production), then:
+
+You need to generate a pre-signed GET URL from your backend.
+
+Use that URL to play or download the video.
+
+✅ 2. Backend: Generate Pre-Signed GET URL (Add this to your Flask backend)
+python
+Copy
+Edit
+@app.route('/get-video-url', methods=['POST'])
+def get_video_url():
+    file_name = request.json['fileName']
+
+    presigned_url = s3.generate_presigned_url(
+        ClientMethod='get_object',
+        Params={
+            'Bucket': BUCKET_NAME,
+            'Key': file_name
+        },
+        ExpiresIn=3600  # 1 hour
+    )
+    return jsonify({'url': presigned_url})
+✅ 3. Frontend: Fetch and Show Video
+html
+Copy
+Edit
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Play Uploaded Video</title>
+</head>
+<body>
+  <h2>Watch Your Uploaded Video</h2>
+  <input type="text" id="videoName" placeholder="Enter uploaded video name (e.g., video.mp4)">
+  <button onclick="loadVideo()">Load Video</button>
+
+  <div id="videoContainer"></div>
+
+  <script>
+    async function loadVideo() {
+      const fileName = document.getElementById('videoName').value;
+      const response = await fetch('http://localhost:5000/get-video-url', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ fileName })
+      });
+
+      const data = await response.json();
+      const videoUrl = data.url;
+
+      const videoHtml = `
+        <video width="640" height="360" controls>
+          <source src="${videoUrl}" type="video/mp4">
+          Your browser does not support the video tag.
+        </video>
+      `;
+      document.getElementById('videoContainer').innerHTML = videoHtml;
+    }
+  </script>
+</body>
+</html>
+✅ 4. (Optional) If Using Public Bucket
+Skip backend and directly do:
+
+html
+Copy
+Edit
+<video controls>
+  <source src="https://your-bucket.s3.amazonaws.com/video.mp4" type="video/mp4">
+</video>

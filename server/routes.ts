@@ -132,6 +132,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get presigned URL for video viewing
+  app.post('/api/get-video-url', isAuthenticated, async (req: any, res) => {
+    try {
+      const { s3Key, videoUrl } = req.body;
+      
+      if (!s3Key && !videoUrl) {
+        return res.status(400).json({ message: "s3Key or videoUrl is required" });
+      }
+      
+      // If we already have a video URL, return it
+      if (videoUrl && videoUrl.startsWith('http')) {
+        return res.json({ url: videoUrl });
+      }
+      
+      // Generate presigned URL for S3 video
+      if (s3Key) {
+        const presignedUrl = await S3Service.getPresignedViewUrl(s3Key);
+        return res.json({ url: presignedUrl });
+      }
+      
+      res.status(400).json({ message: "Unable to generate video URL" });
+    } catch (error) {
+      console.error("Error getting video URL:", error);
+      res.status(500).json({ message: "Failed to get video URL" });
+    }
+  });
+
   // Generate presigned URL for direct frontend uploads
   app.post('/api/generate-presigned-url', isAuthenticated, async (req: any, res) => {
     try {

@@ -7,7 +7,7 @@ import { useToast } from "@/hooks/use-toast";
 import { isUnauthorizedError } from "@/lib/authUtils";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import CommentsSidebar from "./CommentsSidebar";
+// import CommentsSidebar from "./CommentsSidebar";
 
 interface VideoItemProps {
   video: VideoWithUser;
@@ -27,6 +27,10 @@ export default function VideoItem({ video, isActive }: VideoItemProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  const [videoUrl, setVideoUrl] = useState<string>(video.videoUrl);
+  const [videoError, setVideoError] = useState<string>('');
+  const [loadingVideo, setLoadingVideo] = useState(false);
 
   const likeMutation = useMutation({
     mutationFn: () => apiRequest("POST", `/api/videos/${video.id}/like`),
@@ -75,6 +79,41 @@ export default function VideoItem({ video, isActive }: VideoItemProps) {
   const viewMutation = useMutation({
     mutationFn: () => apiRequest("POST", `/api/videos/${video.id}/view`),
   });
+
+  // Fetch proper video URL if needed
+  useEffect(() => {
+    const fetchVideoUrl = async () => {
+      if (video.s3Key && (!videoUrl || videoUrl.includes('amazonaws.com'))) {
+        setLoadingVideo(true);
+        try {
+          const response = await fetch('/api/get-video-url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            credentials: 'include',
+            body: JSON.stringify({ 
+              s3Key: video.s3Key,
+              videoUrl: video.videoUrl 
+            }),
+          });
+          
+          if (response.ok) {
+            const data = await response.json();
+            setVideoUrl(data.url);
+            setVideoError('');
+          } else {
+            throw new Error('Failed to get video URL');
+          }
+        } catch (error) {
+          console.error('Error fetching video URL:', error);
+          setVideoError('Failed to load video');
+        } finally {
+          setLoadingVideo(false);
+        }
+      }
+    };
+    
+    fetchVideoUrl();
+  }, [video.s3Key, video.videoUrl, videoUrl]);
 
   useEffect(() => {
     if (isActive && videoRef.current) {
@@ -148,21 +187,43 @@ export default function VideoItem({ video, isActive }: VideoItemProps) {
         data-video-id={video.id}
       >
         {/* Video Element */}
-        <video
-          ref={videoRef}
-          className="w-full h-full object-cover"
-          src={video.videoUrl}
-          muted={false}
-          loop
-          playsInline
-          onClick={togglePlay}
-          onLoadStart={() => {
-            // Unmute video after user interaction
-            if (videoRef.current && isActive) {
-              videoRef.current.muted = false;
-            }
-          }}
-        />
+        {loadingVideo ? (
+          <div className="flex items-center justify-center text-white">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-white"></div>
+          </div>
+        ) : videoError ? (
+          <div className="flex items-center justify-center text-white">
+            <div className="text-center">
+              <p>Failed to load video</p>
+              <button 
+                onClick={() => window.location.reload()} 
+                className="mt-2 px-4 py-2 bg-blue-500 rounded text-white"
+              >
+                Reload
+              </button>
+            </div>
+          </div>
+        ) : (
+          <video
+            ref={videoRef}
+            className="w-full h-full object-cover"
+            src={videoUrl}
+            muted={false}
+            loop
+            playsInline
+            onClick={togglePlay}
+            onError={(e) => {
+              console.error('Video error:', e);
+              setVideoError('Video playback failed');
+            }}
+            onLoadStart={() => {
+              // Unmute video after user interaction
+              if (videoRef.current && isActive) {
+                videoRef.current.muted = false;
+              }
+            }}
+          />
+        )}
 
         {/* Overlay */}
         <div className="absolute inset-0 bg-black bg-opacity-20" />
