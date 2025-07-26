@@ -7,6 +7,7 @@ import { insertVideoSchema, insertCommentSchema } from "@shared/schema";
 import { z } from "zod";
 import { upload } from "./multer";
 import { S3Service } from "./s3";
+import { uploadDemoVideos } from "./uploadDemoVideos";
 import path from "path";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -115,6 +116,47 @@ export async function registerRoutes(app: Express): Promise<Server> {
         s3Connected: false, 
         error: 'S3 connection failed' 
       });
+    }
+  });
+
+  // Upload demo videos to S3 (admin endpoint)
+  app.post('/api/admin/upload-demo-videos', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = (req.user as any)?.claims?.sub;
+      console.log('Starting demo video upload process...');
+      
+      const demoVideos = await uploadDemoVideos(userId);
+      
+      // Save demo videos to database
+      const savedVideos = [];
+      for (const video of demoVideos) {
+        try {
+          const videoData = insertVideoSchema.parse({
+            title: video.title,
+            description: video.description,
+            videoUrl: video.videoUrl,
+            musicTitle: video.musicTitle,
+            isPublic: true,
+            userId: video.userId,
+            s3Key: video.s3Key
+          });
+          
+          const savedVideo = await storage.createVideo(videoData);
+          savedVideos.push(savedVideo);
+        } catch (error) {
+          console.error('Error saving demo video to database:', error);
+        }
+      }
+      
+      res.json({ 
+        message: 'Demo videos uploaded successfully',
+        uploaded: demoVideos.length,
+        saved: savedVideos.length,
+        videos: savedVideos
+      });
+    } catch (error) {
+      console.error('Error uploading demo videos:', error);
+      res.status(500).json({ message: 'Failed to upload demo videos' });
     }
   });
 

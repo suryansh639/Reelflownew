@@ -27,7 +27,7 @@ export class S3Service {
       Key: key,
       Body: file.buffer,
       ContentType: file.mimetype,
-      ACL: 'public-read', // Make videos publicly accessible
+      // Removed ACL since your bucket doesn't support it
       Metadata: {
         userId,
         originalName: file.originalname,
@@ -38,7 +38,8 @@ export class S3Service {
     try {
       await s3Client.send(command);
       
-      // Generate public URL
+      // Generate public URL - check if bucket has public access
+      // If your bucket is not public, videos may not be accessible via direct URL
       const url = `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${key}`;
       
       return { url, key };
@@ -76,7 +77,7 @@ export class S3Service {
       Bucket: BUCKET_NAME,
       Key: key,
       ContentType: fileType,
-      ACL: 'public-read',
+      // Removed ACL since your bucket doesn't support it
     });
 
     try {
