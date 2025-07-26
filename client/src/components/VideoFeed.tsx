@@ -131,14 +131,20 @@ export default function VideoFeed() {
   return (
     <div 
       ref={containerRef}
-      className="video-container h-screen overflow-y-scroll pt-16 pb-20"
+      className="video-container h-screen overflow-y-scroll pt-16 pb-20 snap-y snap-mandatory"
+      style={{
+        height: '100dvh', // Dynamic viewport height for better mobile support
+        scrollBehavior: 'smooth',
+        WebkitOverflowScrolling: 'touch' // Smooth scrolling on iOS
+      }}
     >
       {videos.map((video, index) => (
-        <VideoItem 
-          key={video.id} 
-          video={video} 
-          isActive={index === currentIndex}
-        />
+        <div key={video.id} className="snap-start snap-always">
+          <VideoItem 
+            video={video} 
+            isActive={index === currentIndex}
+          />
+        </div>
       ))}
     </div>
   );

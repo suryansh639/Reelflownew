@@ -221,8 +221,11 @@ export default function VideoItem({ video, isActive }: VideoItemProps) {
     <>
       <div 
         ref={containerRef}
-        className="video-item relative w-full h-screen flex items-center justify-center bg-black"
+        className="video-item relative w-full h-screen flex items-center justify-center bg-black overflow-hidden"
         data-video-id={video.id}
+        style={{
+          minHeight: '100dvh', // Dynamic viewport height for better mobile support
+        }}
       >
         {/* Video Element */}
         {loadingVideo ? (
@@ -245,10 +248,19 @@ export default function VideoItem({ video, isActive }: VideoItemProps) {
           <video
             ref={videoRef}
             className="w-full h-full object-cover"
+            style={{
+              aspectRatio: '9/16',
+              maxHeight: '100vh',
+              maxWidth: '100vw',
+              objectFit: 'cover',
+              objectPosition: 'center'
+            }}
             src={videoUrl}
             muted={false}
             loop
             playsInline
+            webkit-playsinline="true"
+            preload="metadata"
             onClick={togglePlay}
             onError={(e) => {
               console.error('Video error:', e);
@@ -262,10 +274,6 @@ export default function VideoItem({ video, isActive }: VideoItemProps) {
             }}
             onLoadStart={() => {
               console.log('Video loading started:', videoUrl);
-              // Unmute video after user interaction
-              if (videoRef.current && isActive) {
-                videoRef.current.muted = false;
-              }
               // Unmute video after user interaction
               if (videoRef.current && isActive) {
                 videoRef.current.muted = false;

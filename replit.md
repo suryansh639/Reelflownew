@@ -159,11 +159,28 @@ The application is designed with a mobile-first approach, featuring:
 
 ## Recent Changes (January 2025)
 
+### Video Playback & Device Optimization (Latest)
+- ✓ Fixed multiple videos playing simultaneously issue
+- ✓ Implemented proper video play/pause control based on scroll position
+- ✓ Added responsive video sizing for all devices (mobile, tablet, desktop)
+- ✓ Enhanced mobile support with dynamic viewport height (100dvh)
+- ✓ Added snap scrolling for smooth TikTok-style navigation
+- ✓ Optimized video loading and error handling
+- ✓ Added iOS Safari video playback optimizations
+
+### AWS S3 Integration & Production Setup
+- ✓ Successfully integrated AWS S3 for video storage and retrieval
+- ✓ Implemented S3 video sync functionality (imported 5 existing videos)
+- ✓ Fixed S3 CORS configuration for direct uploads
+- ✓ Added presigned URL generation for secure video access
+- ✓ Created comprehensive production deployment documentation
+- ✓ Updated Docker configuration for production deployment
+- ✓ Added environment configuration templates (.env.example)
+
 ### Dockerization & Deployment Setup
 - ✓ Added comprehensive Docker configuration
 - ✓ Created development and production Docker Compose files
 - ✓ Implemented file upload functionality with Multer
 - ✓ Added sound support to video playbook
 - ✓ Created GitHub Actions workflow for CI/CD
-- ✓ Added environment configuration templates
 - ✓ Updated project documentation for deployment
