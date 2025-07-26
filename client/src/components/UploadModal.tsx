@@ -35,26 +35,75 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
       isPublic: boolean;
       musicTitle?: string;
     }) => {
-      const formData = new FormData();
-      formData.append("title", data.title);
-      formData.append("description", data.description);
-      formData.append("isPublic", data.isPublic.toString());
-      if (data.musicTitle) formData.append("musicTitle", data.musicTitle);
-      
       if (data.videoFile) {
-        formData.append("video", data.videoFile);
-      } else if (data.videoUrl) {
-        formData.append("videoUrl", data.videoUrl);
+        // Use presigned URL for direct S3 upload
+        const file = data.videoFile;
+        
+        // Step 1: Get presigned URL
+        const presignedResponse = await fetch("/api/generate-presigned-url", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            fileName: file.name,
+            fileType: file.type,
+          }),
+        });
+        
+        if (!presignedResponse.ok) {
+          throw new Error("Failed to get upload URL");
+        }
+        
+        const { uploadUrl, publicUrl, key } = await presignedResponse.json();
+        
+        // Step 2: Upload directly to S3
+        const uploadResponse = await fetch(uploadUrl, {
+          method: "PUT",
+          body: file,
+          headers: {
+            "Content-Type": file.type,
+          },
+        });
+        
+        if (!uploadResponse.ok) {
+          throw new Error("Failed to upload to S3");
+        }
+        
+        // Step 3: Save metadata to database
+        return fetch("/api/videos/metadata", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          credentials: "include",
+          body: JSON.stringify({
+            title: data.title,
+            description: data.description,
+            videoUrl: publicUrl,
+            musicTitle: data.musicTitle,
+            isPublic: data.isPublic,
+            s3Key: key,
+          }),
+        }).then(res => {
+          if (!res.ok) throw new Error("Failed to save video metadata");
+          return res.json();
+        });
+      } else {
+        // Fallback to form upload for URL-based videos
+        const formData = new FormData();
+        formData.append("title", data.title);
+        formData.append("description", data.description);
+        formData.append("isPublic", data.isPublic.toString());
+        if (data.musicTitle) formData.append("musicTitle", data.musicTitle);
+        if (data.videoUrl) formData.append("videoUrl", data.videoUrl);
+        
+        return fetch("/api/videos", {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+        }).then(res => {
+          if (!res.ok) throw new Error("Upload failed");
+          return res.json();
+        });
       }
-      
-      return fetch("/api/videos", {
-        method: "POST",
-        body: formData,
-        credentials: "include",
-      }).then(res => {
-        if (!res.ok) throw new Error("Upload failed");
-        return res.json();
-      });
     },
     onSuccess: () => {
       toast({

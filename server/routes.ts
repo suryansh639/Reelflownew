@@ -84,10 +84,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const videoData = insertVideoSchema.parse({
-        ...req.body,
-        userId,
+        title: req.body.title || 'Untitled Video',
+        description: req.body.description || '',
         videoUrl,
-        // Store S3 key for future deletion if needed
+        musicTitle: req.body.musicTitle || 'Original Sound',
+        isPublic: req.body.isPublic === 'true' || req.body.isPublic === true,
+        userId,
         ...(s3Key && { s3Key }),
       });
       
@@ -116,6 +118,66 @@ export async function registerRoutes(app: Express): Promise<Server> {
         s3Connected: false, 
         error: 'S3 connection failed' 
       });
+    }
+  });
+
+  // Configure S3 CORS
+  app.post('/api/admin/configure-s3-cors', async (req, res) => {
+    try {
+      await S3Service.configureCORS();
+      res.json({ message: 'S3 CORS configured successfully' });
+    } catch (error) {
+      console.error('Failed to configure CORS:', error);
+      res.status(500).json({ message: 'Failed to configure S3 CORS' });
+    }
+  });
+
+  // Generate presigned URL for direct frontend uploads
+  app.post('/api/generate-presigned-url', isAuthenticated, async (req: any, res) => {
+    try {
+      const { fileName, fileType } = req.body;
+      const userId = (req.user as any)?.claims?.sub;
+      
+      if (!fileName || !fileType) {
+        return res.status(400).json({ message: "fileName and fileType are required" });
+      }
+      
+      // Validate file type
+      if (!fileType.startsWith('video/')) {
+        return res.status(400).json({ message: "Only video files are allowed" });
+      }
+      
+      const presignedData = await S3Service.getPresignedUploadUrl(fileName, fileType, userId);
+      res.json(presignedData);
+    } catch (error) {
+      console.error("Error generating presigned URL:", error);
+      res.status(500).json({ message: "Failed to generate presigned URL" });
+    }
+  });
+
+  // Save video metadata after direct S3 upload
+  app.post('/api/videos/metadata', isAuthenticated, async (req: any, res) => {
+    try {
+      const userId = (req.user as any)?.claims?.sub;
+      
+      const videoData = insertVideoSchema.parse({
+        title: req.body.title || 'Untitled Video',
+        description: req.body.description || '',
+        videoUrl: req.body.videoUrl,
+        musicTitle: req.body.musicTitle || 'Original Sound',
+        isPublic: req.body.isPublic === true || req.body.isPublic === 'true',
+        userId,
+        s3Key: req.body.s3Key,
+      });
+      
+      const video = await storage.createVideo(videoData);
+      res.status(201).json(video);
+    } catch (error) {
+      if (error instanceof z.ZodError) {
+        return res.status(400).json({ message: "Invalid video data", errors: error.errors });
+      }
+      console.error("Error saving video metadata:", error);
+      res.status(500).json({ message: "Failed to save video metadata" });
     }
   });
 

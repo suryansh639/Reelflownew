@@ -104,4 +104,31 @@ export class S3Service {
       return false;
     }
   }
+
+  // Configure CORS for the bucket
+  static async configureCORS(): Promise<void> {
+    try {
+      const { PutBucketCorsCommand } = await import('@aws-sdk/client-s3');
+      const corsConfiguration = {
+        CORSRules: [
+          {
+            AllowedOrigins: ['*'], // In production, replace with your domain
+            AllowedMethods: ['PUT', 'POST', 'GET'],
+            AllowedHeaders: ['*'],
+            MaxAgeSeconds: 3600
+          }
+        ]
+      };
+      
+      const command = new PutBucketCorsCommand({
+        Bucket: BUCKET_NAME,
+        CORSConfiguration: corsConfiguration
+      });
+      
+      await s3Client.send(command);
+      console.log('S3 CORS configuration updated successfully');
+    } catch (error) {
+      console.error('Failed to configure S3 CORS:', error);
+    }
+  }
 }
