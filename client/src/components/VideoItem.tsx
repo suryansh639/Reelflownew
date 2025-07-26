@@ -152,10 +152,16 @@ export default function VideoItem({ video, isActive }: VideoItemProps) {
           ref={videoRef}
           className="w-full h-full object-cover"
           src={video.videoUrl}
-          muted
+          muted={false}
           loop
           playsInline
           onClick={togglePlay}
+          onLoadStart={() => {
+            // Unmute video after user interaction
+            if (videoRef.current && isActive) {
+              videoRef.current.muted = false;
+            }
+          }}
         />
 
         {/* Overlay */}

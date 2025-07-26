@@ -1,9 +1,12 @@
 import type { Express } from "express";
+import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth, isAuthenticated } from "./replitAuth";
 import { insertVideoSchema, insertCommentSchema } from "@shared/schema";
 import { z } from "zod";
+import { upload } from "./multer";
+import path from "path";
 
 export async function registerRoutes(app: Express): Promise<Server> {
   // Auth middleware
@@ -53,12 +56,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/videos', isAuthenticated, async (req: any, res) => {
+  app.post('/api/videos', isAuthenticated, upload.single('video'), async (req: any, res) => {
     try {
       const userId = (req.user as any)?.claims?.sub;
+      
+      let videoUrl: string;
+      if (req.file) {
+        // If file was uploaded, serve it from our server
+        videoUrl = `/uploads/${req.file.filename}`;
+      } else if (req.body.videoUrl) {
+        // If URL was provided, use it directly
+        videoUrl = req.body.videoUrl;
+      } else {
+        return res.status(400).json({ message: "No video file or URL provided" });
+      }
+      
       const videoData = insertVideoSchema.parse({
         ...req.body,
         userId,
+        videoUrl,
       });
       
       const video = await storage.createVideo(videoData);
@@ -71,6 +87,14 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.status(500).json({ message: "Failed to create video" });
     }
   });
+
+  // Serve uploaded files
+  app.use('/uploads', (req, res, next) => {
+    res.header('Cross-Origin-Resource-Policy', 'cross-origin');
+    next();
+  });
+  
+  app.use('/uploads', express.static(path.join(process.cwd(), 'uploads')));
 
   app.post('/api/videos/:id/view', async (req, res) => {
     try {

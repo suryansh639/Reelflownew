@@ -30,11 +30,31 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
     mutationFn: async (data: {
       title: string;
       description: string;
-      videoUrl: string;
+      videoFile?: File;
+      videoUrl?: string;
       isPublic: boolean;
       musicTitle?: string;
     }) => {
-      return apiRequest("POST", "/api/videos", data);
+      const formData = new FormData();
+      formData.append("title", data.title);
+      formData.append("description", data.description);
+      formData.append("isPublic", data.isPublic.toString());
+      if (data.musicTitle) formData.append("musicTitle", data.musicTitle);
+      
+      if (data.videoFile) {
+        formData.append("video", data.videoFile);
+      } else if (data.videoUrl) {
+        formData.append("videoUrl", data.videoUrl);
+      }
+      
+      return fetch("/api/videos", {
+        method: "POST",
+        body: formData,
+        credentials: "include",
+      }).then(res => {
+        if (!res.ok) throw new Error("Upload failed");
+        return res.json();
+      });
     },
     onSuccess: () => {
       toast({
@@ -115,23 +135,11 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
       return;
     }
 
-    // Sample video URLs for demo purposes
-    const sampleVideos = [
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4",
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4",
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerBlazes.mp4",
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerEscapes.mp4",
-      "https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerFun.mp4"
-    ];
-    
-    // In a real implementation, you would upload to S3/CDN here
-    // For demo, we'll use a random sample video
-    const videoUrl = sampleVideos[Math.floor(Math.random() * sampleVideos.length)];
-
+    // Upload the actual selected file
     uploadMutation.mutate({
       title: title || selectedFile.name.replace(/\.[^/.]+$/, ""),
       description: description || "Check out my new video!",
-      videoUrl,
+      videoFile: selectedFile,
       isPublic: privacy === "public",
       musicTitle: musicTitle || "Original Sound",
     });

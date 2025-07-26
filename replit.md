@@ -144,3 +144,26 @@ The application is designed with a mobile-first approach, featuring:
 - **Session Security**: HTTP-only cookies with secure settings
 - **User Experience**: Automatic login redirects for expired sessions
 - **Data Protection**: All routes require authentication except landing page
+
+### Video Upload & Storage
+- **File Upload**: Multer middleware for handling video file uploads
+- **Local Storage**: Videos stored locally for development, configurable for production
+- **File Serving**: Express static middleware for serving uploaded videos
+- **Audio Support**: Videos play with sound for enhanced user experience
+
+### Docker & Deployment
+- **Multi-stage Dockerfile**: Optimized for production deployment
+- **Docker Compose**: Both development and production configurations
+- **CI/CD Pipeline**: GitHub Actions for automated builds and deployment
+- **Environment Configuration**: Flexible environment variable management
+
+## Recent Changes (January 2025)
+
+### Dockerization & Deployment Setup
+- ✓ Added comprehensive Docker configuration
+- ✓ Created development and production Docker Compose files
+- ✓ Implemented file upload functionality with Multer
+- ✓ Added sound support to video playbook
+- ✓ Created GitHub Actions workflow for CI/CD
+- ✓ Added environment configuration templates
+- ✓ Updated project documentation for deployment
