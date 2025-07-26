@@ -14,8 +14,8 @@ export default function VideoFeed() {
   });
 
   useEffect(() => {
-    if (fetchedVideos) {
-      setVideos(fetchedVideos);
+    if (fetchedVideos && Array.isArray(fetchedVideos)) {
+      setVideos(fetchedVideos as VideoWithUser[]);
     }
   }, [fetchedVideos]);
 

@@ -21,7 +21,7 @@ export default function CommentsSidebar({ videoId, isOpen, onClose }: CommentsSi
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: comments = [], isLoading } = useQuery({
+  const { data: comments = [], isLoading } = useQuery<CommentWithUser[]>({
     queryKey: ["/api/videos", videoId, "comments"],
     enabled: isOpen,
   });
@@ -128,7 +128,7 @@ export default function CommentsSidebar({ videoId, isOpen, onClose }: CommentsSi
                         @{comment.user.username || 'user'}
                       </span>
                       <span className="text-xs text-tiktok-gray">
-                        {formatTimeAgo(comment.createdAt!)}
+                        {formatTimeAgo(comment.createdAt?.toString() || new Date().toISOString())}
                       </span>
                     </div>
                     <p className="text-sm mt-1">{comment.content}</p>

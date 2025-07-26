@@ -12,7 +12,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Auth routes
   app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any)?.claims?.sub;
       const user = await storage.getUser(userId);
       res.json(user);
     } catch (error) {
@@ -26,7 +26,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     try {
       const limit = parseInt(req.query.limit as string) || 20;
       const offset = parseInt(req.query.offset as string) || 0;
-      const userId = req.user?.claims?.sub;
+      const userId = (req.user as any)?.claims?.sub;
       
       const videos = await storage.getVideos(userId, limit, offset);
       res.json(videos);
@@ -39,7 +39,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/videos/:id', async (req, res) => {
     try {
       const { id } = req.params;
-      const userId = req.user?.claims?.sub;
+      const userId = (req.user as any)?.claims?.sub;
       
       const video = await storage.getVideo(id, userId);
       if (!video) {
@@ -55,7 +55,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   app.post('/api/videos', isAuthenticated, async (req: any, res) => {
     try {
-      const userId = req.user.claims.sub;
+      const userId = (req.user as any)?.claims?.sub;
       const videoData = insertVideoSchema.parse({
         ...req.body,
         userId,
