@@ -109,6 +109,36 @@ export class S3Service {
     }
   }
 
+  // Configure bucket policy for public read access
+  static async configureBucketPolicy(): Promise<void> {
+    try {
+      const { PutBucketPolicyCommand } = await import('@aws-sdk/client-s3');
+      
+      const bucketPolicy = {
+        Version: "2012-10-17",
+        Statement: [
+          {
+            Sid: "PublicReadGetObject",
+            Effect: "Allow",
+            Principal: "*",
+            Action: "s3:GetObject",
+            Resource: `arn:aws:s3:::${BUCKET_NAME}/videos/*`
+          }
+        ]
+      };
+      
+      const command = new PutBucketPolicyCommand({
+        Bucket: BUCKET_NAME,
+        Policy: JSON.stringify(bucketPolicy)
+      });
+      
+      await s3Client.send(command);
+      console.log('S3 bucket policy configured for video access');
+    } catch (error) {
+      console.error('Failed to configure S3 bucket policy:', error);
+    }
+  }
+
   // Configure CORS for the bucket
   static async configureCORS(): Promise<void> {
     try {
@@ -146,16 +176,13 @@ export class S3Service {
       const command = new GetObjectCommand({
         Bucket: BUCKET_NAME,
         Key: s3Key,
-        ResponseContentType: 'video/mp4', // Ensure proper content type
       });
       
       const presignedUrl = await getSignedUrl(s3Client, command, { 
-        expiresIn: 3600,
-        unhoistableHeaders: new Set(['x-amz-checksum-crc32'])
+        expiresIn: 300 // 5 minutes as per instructions
       });
       
       console.log('Generated presigned view URL for key:', s3Key);
-      console.log('Presigned URL:', presignedUrl);
       
       return presignedUrl;
     } catch (error) {

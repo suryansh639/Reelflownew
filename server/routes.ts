@@ -133,7 +133,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Get presigned URL for video viewing
-  app.post('/api/get-video-url', isAuthenticated, async (req: any, res) => {
+  app.post('/api/get-video-url', async (req: any, res) => {
     try {
       const { s3Key, videoUrl } = req.body;
       
