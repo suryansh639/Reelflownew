@@ -344,12 +344,25 @@ export default function VideoItem({ video, isActive }: VideoItemProps) {
         </div>
       </div>
 
-      {/* Comments Sidebar */}
-      <CommentsSidebar 
-        videoId={video.id}
-        isOpen={showComments}
-        onClose={() => setShowComments(false)}
-      />
+      {/* Comments Sidebar - TODO: Implement CommentsSidebar component */}
+      {showComments && (
+        <div className="absolute right-0 top-0 w-80 h-full bg-black bg-opacity-90 z-50 p-4">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-white text-lg font-semibold">Comments</h3>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setShowComments(false)}
+              className="text-white"
+            >
+              ✕
+            </Button>
+          </div>
+          <div className="text-white text-center opacity-70">
+            Comments feature coming soon!
+          </div>
+        </div>
+      )}
     </>
   );
 }
