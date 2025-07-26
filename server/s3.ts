@@ -21,7 +21,7 @@ const cloudFrontClient = new CloudFrontClient({
   },
 });
 
-const BUCKET_NAME = process.env.S3_BUCKET_NAME!;
+const BUCKET_NAME = process.env.S3_BUCKET_NAME!.trim();
 // CloudFront domain from your distribution E2NL5E3ZOA6QSV
 const CLOUDFRONT_DOMAIN = process.env.CLOUDFRONT_DOMAIN || 'e2nl5e3zoa6qsv.cloudfront.net';
 

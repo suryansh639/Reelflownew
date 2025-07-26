@@ -68,6 +68,7 @@ export default function UploadModal({ isOpen, onClose }: UploadModalProps) {
               "Content-Type": file.type,
             },
             mode: 'cors',
+            credentials: 'omit',
           });
           
           console.log("S3 upload response status:", uploadResponse.status);
