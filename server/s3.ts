@@ -77,7 +77,11 @@ export class S3Service {
       Bucket: BUCKET_NAME,
       Key: key,
       ContentType: fileType,
-      // Removed ACL since your bucket doesn't support it
+      // Use bucket policy for permissions instead of ACL
+      Metadata: {
+        'uploaded-by': userId,
+        'upload-date': new Date().toISOString()
+      }
     });
 
     try {
@@ -142,9 +146,17 @@ export class S3Service {
       const command = new GetObjectCommand({
         Bucket: BUCKET_NAME,
         Key: s3Key,
+        ResponseContentType: 'video/mp4', // Ensure proper content type
       });
       
-      const presignedUrl = await getSignedUrl(s3Client, command, { expiresIn: 3600 });
+      const presignedUrl = await getSignedUrl(s3Client, command, { 
+        expiresIn: 3600,
+        unhoistableHeaders: new Set(['x-amz-checksum-crc32'])
+      });
+      
+      console.log('Generated presigned view URL for key:', s3Key);
+      console.log('Presigned URL:', presignedUrl);
+      
       return presignedUrl;
     } catch (error) {
       console.error('Error generating presigned view URL:', error);

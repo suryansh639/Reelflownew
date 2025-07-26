@@ -234,9 +234,20 @@ export default function VideoItem({ video, isActive }: VideoItemProps) {
             onClick={togglePlay}
             onError={(e) => {
               console.error('Video error:', e);
-              setVideoError('Video playback failed');
+              console.error('Failed video URL:', videoUrl);
+              console.error('Video element error details:', e.currentTarget.error);
+              setVideoError('Video playback failed - check S3 permissions');
+            }}
+            onLoadedData={() => {
+              console.log('Video loaded successfully:', videoUrl);
+              setVideoError('');
             }}
             onLoadStart={() => {
+              console.log('Video loading started:', videoUrl);
+              // Unmute video after user interaction
+              if (videoRef.current && isActive) {
+                videoRef.current.muted = false;
+              }
               // Unmute video after user interaction
               if (videoRef.current && isActive) {
                 videoRef.current.muted = false;
