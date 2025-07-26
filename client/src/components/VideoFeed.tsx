@@ -49,6 +49,8 @@ export default function VideoFeed() {
   useEffect(() => {
     if (fetchedVideos && Array.isArray(fetchedVideos)) {
       setVideos(fetchedVideos as VideoWithUser[]);
+      // Reset to first video when new videos are loaded
+      setCurrentIndex(0);
     }
   }, [fetchedVideos]);
 
@@ -60,12 +62,39 @@ export default function VideoFeed() {
       const scrollTop = container.scrollTop;
       const containerHeight = container.clientHeight;
       const newIndex = Math.round(scrollTop / containerHeight);
-      setCurrentIndex(newIndex);
+      
+      // Only update if index actually changed
+      if (newIndex !== currentIndex && newIndex >= 0 && newIndex < videos.length) {
+        setCurrentIndex(newIndex);
+      }
     };
 
-    container.addEventListener('scroll', handleScroll);
-    return () => container.removeEventListener('scroll', handleScroll);
-  }, []);
+    // Use throttling to avoid too many scroll events
+    let scrollTimeout: NodeJS.Timeout;
+    const throttledHandleScroll = () => {
+      clearTimeout(scrollTimeout);
+      scrollTimeout = setTimeout(handleScroll, 100);
+    };
+
+    container.addEventListener('scroll', throttledHandleScroll);
+    
+    // Pause all videos when page becomes hidden
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        // Page is hidden, pause all videos
+        const videoElements = container.querySelectorAll('video');
+        videoElements.forEach(video => video.pause());
+      }
+    };
+    
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+    
+    return () => {
+      container.removeEventListener('scroll', throttledHandleScroll);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      clearTimeout(scrollTimeout);
+    };
+  }, [currentIndex, videos.length]);
 
   if (isLoading) {
     return (

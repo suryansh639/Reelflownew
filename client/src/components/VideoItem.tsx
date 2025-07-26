@@ -15,7 +15,7 @@ interface VideoItemProps {
 }
 
 export default function VideoItem({ video, isActive }: VideoItemProps) {
-  const [isPlaying, setIsPlaying] = useState(isActive);
+  const [isPlaying, setIsPlaying] = useState(false);
   const [showControls, setShowControls] = useState(false);
   const [progress, setProgress] = useState(0);
   const [showComments, setShowComments] = useState(false);
@@ -132,12 +132,19 @@ export default function VideoItem({ video, isActive }: VideoItemProps) {
   }, [video.s3Key, video.videoUrl]);
 
   useEffect(() => {
-    if (isActive && videoRef.current) {
-      videoRef.current.currentTime = 0;
+    const videoElement = videoRef.current;
+    if (!videoElement) return;
+
+    if (isActive) {
+      // Reset video to beginning and start playing
+      videoElement.currentTime = 0;
       setIsPlaying(true);
       viewMutation.mutate();
     } else {
+      // Pause and reset when not active
       setIsPlaying(false);
+      videoElement.pause();
+      videoElement.currentTime = 0;
     }
   }, [isActive]);
 
@@ -184,9 +191,12 @@ export default function VideoItem({ video, isActive }: VideoItemProps) {
   }, [isPlaying]);
 
   const togglePlay = () => {
-    setIsPlaying(!isPlaying);
-    setShowControls(true);
-    setTimeout(() => setShowControls(false), 1000);
+    // Only allow manual play/pause if this video is active
+    if (isActive) {
+      setIsPlaying(!isPlaying);
+      setShowControls(true);
+      setTimeout(() => setShowControls(false), 1000);
+    }
   };
 
   const handleLike = () => {
