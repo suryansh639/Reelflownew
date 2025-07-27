@@ -42,6 +42,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Get video validation rules (must be before /:id route)
+  app.get('/api/videos/validation-rules', (req, res) => {
+    res.json({
+      maxDurationSeconds: 60,
+      maxFileSizeMB: 10,
+      allowedFormats: ['video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/webm'],
+      requiresEducationalContent: true,
+      description: 'Videos must be educational content only, maximum 60 seconds or 10MB'
+    });
+  });
+
   app.get('/api/videos/:id', async (req, res) => {
     try {
       const { id } = req.params;

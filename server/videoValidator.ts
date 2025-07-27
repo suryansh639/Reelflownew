@@ -1,5 +1,6 @@
 import ffmpeg from 'fluent-ffmpeg';
 import ffprobe from 'ffprobe-static';
+import { Readable } from 'stream';
 import { DeepgramService } from './deepgram';
 import { GeminiService, type EducationalAnalysis } from './gemini';
 
@@ -90,7 +91,7 @@ export class VideoValidator {
       const command = ffmpeg();
       
       // Create a readable stream from buffer
-      const stream = require('stream').Readable.from(buffer);
+      const stream = Readable.from(buffer);
 
       command
         .input(stream)

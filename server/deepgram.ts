@@ -36,4 +36,18 @@ export class DeepgramService {
   static async isConfigured(): Promise<boolean> {
     return !!process.env.DEEPGRAM_API_KEY;
   }
+  
+  static async testConnection(): Promise<boolean> {
+    try {
+      if (!process.env.DEEPGRAM_API_KEY) return false;
+      
+      // Simple test with minimal audio buffer
+      const testBuffer = Buffer.alloc(1024);
+      await this.transcribeVideo(testBuffer, 'audio/wav');
+      return true;
+    } catch (error) {
+      // Expected to fail with test buffer, but means API key works
+      return error instanceof Error && !error.message.includes('401');
+    }
+  }
 }

@@ -83,4 +83,20 @@ Reply with a JSON object:
   static async isConfigured(): Promise<boolean> {
     return !!process.env.GEMINI_API_KEY;
   }
+  
+  static async testConnection(): Promise<boolean> {
+    try {
+      if (!process.env.GEMINI_API_KEY) return false;
+      
+      const result = await genAI.models.generateContent({
+        model: 'gemini-2.5-flash',
+        contents: 'Hello',
+      });
+      
+      return !!result.text;
+    } catch (error) {
+      console.error('Gemini test connection failed:', error);
+      return false;
+    }
+  }
 }
