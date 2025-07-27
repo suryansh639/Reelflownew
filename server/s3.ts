@@ -3,34 +3,56 @@ import { CloudFrontClient, CreateDistributionCommand, GetDistributionCommand } f
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { nanoid } from 'nanoid';
 
-// Initialize S3 client
-const s3Client = new S3Client({
-  region: process.env.AWS_REGION!,
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
-});
+// Check if S3 configuration is available
+const isS3Configured = !!(
+  process.env.AWS_REGION &&
+  process.env.AWS_ACCESS_KEY_ID &&
+  process.env.AWS_SECRET_ACCESS_KEY &&
+  process.env.S3_BUCKET_NAME
+);
 
-// Initialize CloudFront client
-const cloudFrontClient = new CloudFrontClient({
-  region: 'us-east-1', // CloudFront is global but requires us-east-1
-  credentials: {
-    accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
-    secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
-  },
-});
+// Initialize S3 client only if configuration is available
+let s3Client: S3Client | null = null;
+let cloudFrontClient: CloudFrontClient | null = null;
+let BUCKET_NAME: string | null = null;
 
-const BUCKET_NAME = process.env.S3_BUCKET_NAME!.trim();
+if (isS3Configured) {
+  s3Client = new S3Client({
+    region: process.env.AWS_REGION!,
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    },
+  });
+
+  cloudFrontClient = new CloudFrontClient({
+    region: 'us-east-1', // CloudFront is global but requires us-east-1
+    credentials: {
+      accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
+      secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
+    },
+  });
+
+  BUCKET_NAME = process.env.S3_BUCKET_NAME!.trim();
+}
 // CloudFront domain from your distribution E2NL5E3ZOA6QSV
 const CLOUDFRONT_DOMAIN = process.env.CLOUDFRONT_DOMAIN || 'e2nl5e3zoa6qsv.cloudfront.net';
 
 export class S3Service {
+  // Check if S3 is configured
+  static isConfigured(): boolean {
+    return isS3Configured;
+  }
+
   // Upload video to S3
   static async uploadVideo(
     file: Express.Multer.File,
     userId: string
   ): Promise<{ url: string; key: string }> {
+    if (!isS3Configured || !s3Client || !BUCKET_NAME) {
+      throw new Error('S3 is not configured. Please set AWS environment variables.');
+    }
+
     const fileExtension = file.originalname.split('.').pop();
     const key = `videos/${userId}/${nanoid()}.${fileExtension}`;
 
@@ -63,6 +85,10 @@ export class S3Service {
 
   // Delete video from S3
   static async deleteVideo(key: string): Promise<void> {
+    if (!isS3Configured || !s3Client || !BUCKET_NAME) {
+      throw new Error('S3 is not configured. Please set AWS environment variables.');
+    }
+
     const command = new DeleteObjectCommand({
       Bucket: BUCKET_NAME,
       Key: key,
@@ -82,6 +108,10 @@ export class S3Service {
     fileType: string,
     userId: string
   ): Promise<{ uploadUrl: string; key: string; publicUrl: string }> {
+    if (!isS3Configured || !s3Client || !BUCKET_NAME) {
+      throw new Error('S3 is not configured. Please set AWS environment variables.');
+    }
+
     const fileExtension = fileName.split('.').pop();
     const key = `videos/${userId}/${nanoid()}.${fileExtension}`;
 
@@ -110,6 +140,10 @@ export class S3Service {
 
   // Check if S3 configuration is valid
   static async testConnection(): Promise<boolean> {
+    if (!isS3Configured || !s3Client || !BUCKET_NAME) {
+      return false;
+    }
+
     try {
       // Try to list objects in the bucket (just to test connection)
       const { HeadBucketCommand } = await import('@aws-sdk/client-s3');

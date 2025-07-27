@@ -66,16 +66,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
       let s3Key: string | undefined;
       
       if (req.file) {
-        // Upload file to S3
-        console.log('Uploading video to S3...', {
-          filename: req.file.originalname,
-          size: `${(req.file.size / (1024 * 1024)).toFixed(2)}MB`,
-          mimetype: req.file.mimetype
-        });
-        const s3Result = await S3Service.uploadVideo(req.file, userId);
-        videoUrl = s3Result.url;
-        s3Key = s3Result.key;
-        console.log('S3 upload successful:', { url: videoUrl, key: s3Key });
+        if (S3Service.isConfigured()) {
+          // Upload file to S3
+          console.log('Uploading video to S3...', {
+            filename: req.file.originalname,
+            size: `${(req.file.size / (1024 * 1024)).toFixed(2)}MB`,
+            mimetype: req.file.mimetype
+          });
+          const s3Result = await S3Service.uploadVideo(req.file, userId);
+          videoUrl = s3Result.url;
+          s3Key = s3Result.key;
+          console.log('S3 upload successful:', { url: videoUrl, key: s3Key });
+        } else {
+          return res.status(400).json({ 
+            message: "S3 is not configured. Please provide a video URL instead or configure AWS credentials." 
+          });
+        }
       } else if (req.body.videoUrl) {
         // If URL was provided, use it directly
         videoUrl = req.body.videoUrl;
