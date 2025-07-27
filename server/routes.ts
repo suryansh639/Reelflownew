@@ -8,6 +8,7 @@ import { z } from "zod";
 import { upload } from "./multer";
 import { S3Service } from "./s3";
 import { uploadDemoVideos } from "./uploadDemoVideos";
+import { VideoValidator } from "./videoValidator";
 import path from "path";
 
 export async function registerRoutes(app: Express): Promise<Server> {
@@ -64,15 +65,39 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       let videoUrl: string;
       let s3Key: string | undefined;
+      let validationResult;
       
       if (req.file) {
+        // Validate video file (duration, size, and educational content)
+        console.log('Validating video file...', {
+          filename: req.file.originalname,
+          size: `${(req.file.size / (1024 * 1024)).toFixed(2)}MB`,
+          mimetype: req.file.mimetype
+        });
+        
+        validationResult = await VideoValidator.validateVideo(req.file);
+        
+        if (!validationResult.isValid) {
+          return res.status(400).json({ 
+            message: "Video validation failed", 
+            errors: validationResult.errors,
+            details: {
+              duration: validationResult.duration,
+              fileSize: `${(validationResult.fileSize / (1024 * 1024)).toFixed(2)}MB`,
+              maxDuration: "60 seconds",
+              maxFileSize: "10MB"
+            }
+          });
+        }
+
+        console.log('Video validation successful:', {
+          duration: `${validationResult.duration}s`,
+          isEducational: validationResult.educationalAnalysis?.is_educational,
+          topic: validationResult.educationalAnalysis?.topic
+        });
+
         if (S3Service.isConfigured()) {
           // Upload file to S3
-          console.log('Uploading video to S3...', {
-            filename: req.file.originalname,
-            size: `${(req.file.size / (1024 * 1024)).toFixed(2)}MB`,
-            mimetype: req.file.mimetype
-          });
           const s3Result = await S3Service.uploadVideo(req.file, userId);
           videoUrl = s3Result.url;
           s3Key = s3Result.key;
@@ -83,24 +108,35 @@ export async function registerRoutes(app: Express): Promise<Server> {
           });
         }
       } else if (req.body.videoUrl) {
-        // If URL was provided, use it directly
+        // If URL was provided, use it directly (skip validation for external URLs)
         videoUrl = req.body.videoUrl;
+        console.log('Using provided video URL:', videoUrl);
       } else {
         return res.status(400).json({ message: "No video file or URL provided" });
       }
       
       const videoData = insertVideoSchema.parse({
         title: req.body.title || 'Untitled Video',
-        description: req.body.description || '',
+        description: req.body.description || (validationResult?.educationalAnalysis?.topic ? `Educational content about: ${validationResult.educationalAnalysis.topic}` : ''),
         videoUrl,
         musicTitle: req.body.musicTitle || 'Original Sound',
         isPublic: req.body.isPublic === 'true' || req.body.isPublic === true,
         userId,
+        duration: validationResult?.duration,
         ...(s3Key && { s3Key }),
       });
       
       const video = await storage.createVideo(videoData);
-      res.status(201).json(video);
+      
+      // Include validation details in response
+      res.status(201).json({
+        ...video,
+        validation: validationResult ? {
+          duration: validationResult.duration,
+          educationalAnalysis: validationResult.educationalAnalysis,
+          transcript: validationResult.transcript
+        } : null
+      });
     } catch (error) {
       if (error instanceof z.ZodError) {
         return res.status(400).json({ message: "Invalid video data", errors: error.errors });
@@ -125,6 +161,41 @@ export async function registerRoutes(app: Express): Promise<Server> {
         error: 'S3 connection failed' 
       });
     }
+  });
+
+  // Health check endpoint for AI services
+  app.get('/api/health/ai', async (req, res) => {
+    try {
+      const { DeepgramService } = await import('./deepgram');
+      const { GeminiService } = await import('./gemini');
+      
+      const deepgramConfigured = await DeepgramService.isConfigured();
+      const geminiConfigured = await GeminiService.isConfigured();
+      
+      res.json({ 
+        deepgramConfigured,
+        geminiConfigured,
+        educationalValidationEnabled: deepgramConfigured && geminiConfigured
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        deepgramConfigured: false,
+        geminiConfigured: false,
+        educationalValidationEnabled: false,
+        error: 'AI services health check failed' 
+      });
+    }
+  });
+
+  // Get video validation rules
+  app.get('/api/videos/validation-rules', (req, res) => {
+    res.json({
+      maxDurationSeconds: 60,
+      maxFileSizeMB: 10,
+      allowedFormats: ['video/mp4', 'video/avi', 'video/mov', 'video/wmv', 'video/webm'],
+      requiresEducationalContent: true,
+      description: 'Videos must be educational content only, maximum 60 seconds or 10MB'
+    });
   });
 
   // Configure S3 CORS
