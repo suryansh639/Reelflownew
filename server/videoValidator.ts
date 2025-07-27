@@ -90,10 +90,7 @@ export class VideoValidator {
       const command = ffmpeg();
       
       // Create a readable stream from buffer
-      const { Readable } = require('stream');
-      const stream = new Readable();
-      stream.push(buffer);
-      stream.push(null);
+      const stream = require('stream').Readable.from(buffer);
 
       command
         .input(stream)
