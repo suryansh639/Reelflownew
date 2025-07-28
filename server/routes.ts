@@ -2,7 +2,7 @@ import type { Express } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { setupAuth, isAuthenticated } from "./replitAuth";
+// Authentication removed - direct access
 import { insertVideoSchema, insertCommentSchema } from "@shared/schema";
 import { z } from "zod";
 import { upload } from "./multer";
@@ -12,29 +12,15 @@ import { VideoValidator } from "./videoValidator";
 import path from "path";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Auth middleware
-  await setupAuth(app);
-
-  // Auth routes
-  app.get('/api/auth/user', isAuthenticated, async (req: any, res) => {
-    try {
-      const userId = (req.user as any)?.claims?.sub;
-      const user = await storage.getUser(userId);
-      res.json(user);
-    } catch (error) {
-      console.error("Error fetching user:", error);
-      res.status(500).json({ message: "Failed to fetch user" });
-    }
-  });
+  // Direct access - no authentication required
 
   // Video routes
   app.get('/api/videos', async (req, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 20;
       const offset = parseInt(req.query.offset as string) || 0;
-      const userId = (req.user as any)?.claims?.sub;
       
-      const videos = await storage.getVideos(userId, limit, offset);
+      const videos = await storage.getVideos(null, limit, offset);
       res.json(videos);
     } catch (error) {
       console.error("Error fetching videos:", error);
@@ -56,9 +42,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/videos/:id', async (req, res) => {
     try {
       const { id } = req.params;
-      const userId = (req.user as any)?.claims?.sub;
       
-      const video = await storage.getVideo(id, userId);
+      const video = await storage.getVideo(id, null);
       if (!video) {
         return res.status(404).json({ message: "Video not found" });
       }
@@ -70,9 +55,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/videos', isAuthenticated, upload.single('video'), async (req: any, res) => {
+  app.post('/api/videos', upload.single('video'), async (req: any, res) => {
     try {
-      const userId = (req.user as any)?.claims?.sub;
+      const userId = 'anonymous'; // No authentication required
       
       let videoUrl: string;
       let s3Key: string | undefined;
@@ -249,10 +234,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Generate presigned URL for direct frontend uploads
-  app.post('/api/generate-presigned-url', isAuthenticated, async (req: any, res) => {
+  app.post('/api/generate-presigned-url', async (req: any, res) => {
     try {
       const { fileName, fileType } = req.body;
-      const userId = (req.user as any)?.claims?.sub;
+      const userId = 'anonymous';
       
       if (!fileName || !fileType) {
         return res.status(400).json({ message: "fileName and fileType are required" });
@@ -272,9 +257,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Save video metadata after direct S3 upload
-  app.post('/api/videos/metadata', isAuthenticated, async (req: any, res) => {
+  app.post('/api/videos/metadata', async (req: any, res) => {
     try {
-      const userId = (req.user as any)?.claims?.sub;
+      const userId = 'anonymous';
       
       const videoData = insertVideoSchema.parse({
         title: req.body.title || 'Untitled Video',
@@ -298,9 +283,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Upload demo videos to S3 (admin endpoint)
-  app.post('/api/admin/upload-demo-videos', isAuthenticated, async (req: any, res) => {
+  app.post('/api/admin/upload-demo-videos', async (req: any, res) => {
     try {
-      const userId = (req.user as any)?.claims?.sub;
+      const userId = 'anonymous';
       console.log('Starting demo video upload process...');
       
       const demoVideos = await uploadDemoVideos(userId);
@@ -339,9 +324,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Sync existing S3 videos to database
-  app.post('/api/admin/sync-s3-videos', isAuthenticated, async (req: any, res) => {
+  app.post('/api/admin/sync-s3-videos', async (req: any, res) => {
     try {
-      const userId = (req.user as any)?.claims?.sub;
+      const userId = 'anonymous';
       console.log('Starting S3 videos sync process...');
       
       // List all videos in S3
@@ -413,10 +398,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Like routes
-  app.post('/api/videos/:id/like', isAuthenticated, async (req: any, res) => {
+  app.post('/api/videos/:id/like', async (req: any, res) => {
     try {
       const { id } = req.params;
-      const userId = (req.user as any)?.claims?.sub;
+      const userId = 'anonymous';
       
       const isLiked = await storage.isVideoLiked(userId, id);
       
@@ -448,10 +433,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  app.post('/api/videos/:id/comments', isAuthenticated, async (req: any, res) => {
+  app.post('/api/videos/:id/comments', async (req: any, res) => {
     try {
       const { id } = req.params;
-      const userId = (req.user as any)?.claims?.sub;
+      const userId = 'anonymous';
       
       const commentData = insertCommentSchema.parse({
         ...req.body,
@@ -486,10 +471,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   // Follow routes
-  app.post('/api/users/:id/follow', isAuthenticated, async (req: any, res) => {
+  app.post('/api/users/:id/follow', async (req: any, res) => {
     try {
       const { id } = req.params;
-      const followerId = (req.user as any)?.claims?.sub;
+      const followerId = 'anonymous';
       
       if (followerId === id) {
         return res.status(400).json({ message: "Cannot follow yourself" });
