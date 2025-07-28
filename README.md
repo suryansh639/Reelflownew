@@ -161,4 +161,9 @@ server/
 
 ## License
 
+<<<<<<< HEAD
 MIT License - see LICENSE file for details"# johai" 
+=======
+MIT License - see LICENSE file for details# myapp
+>>>>>>> eb4771624eb9d21ea3afd19d97336d630cb9227d
+"# johai" 
