@@ -32,12 +32,12 @@ export default function Landing() {
             </div>
           </div>
 
-          {/* Login Button */}
+          {/* Access Button */}
           <Button 
-            onClick={() => window.location.href = '/api/login'}
+            onClick={() => window.location.href = '/'}
             className="w-full bg-tiktok-pink hover:bg-tiktok-pink/90 text-white font-semibold py-3 rounded-lg transition-all duration-300"
           >
-            Get Started
+            Watch Videos
           </Button>
 
           <p className="text-xs text-tiktok-gray mt-4">

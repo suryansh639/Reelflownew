@@ -4,7 +4,7 @@ import { Heart, MessageCircle, Share, MoreHorizontal, Music, Play, Pause } from 
 import { VideoWithUser } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-import { isUnauthorizedError } from "@/lib/authUtils";
+// Direct access mode - no authentication needed
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 // import CommentsSidebar from "./CommentsSidebar";
@@ -57,17 +57,7 @@ export default function VideoItem({ video, isActive }: VideoItemProps) {
       }
     },
     onError: (error) => {
-      if (isUnauthorizedError(error)) {
-        toast({
-          title: "Unauthorized",
-          description: "You are logged out. Logging in again...",
-          variant: "destructive",
-        });
-        setTimeout(() => {
-          window.location.href = "/api/login";
-        }, 500);
-        return;
-      }
+      // Direct access mode - no authentication error handling needed
       toast({
         title: "Error",
         description: "Failed to like video",

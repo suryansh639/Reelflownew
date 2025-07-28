@@ -8,10 +8,7 @@ services:
     environment:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/tiktok_app
-      - SESSION_SECRET=${SESSION_SECRET:-your-super-secret-session-key-change-in-production}
-      - REPLIT_DOMAINS=${REPLIT_DOMAINS:-localhost:5000}
-      - ISSUER_URL=${ISSUER_URL:-https://replit.com/oidc}
-      - REPL_ID=${REPL_ID:-tiktok-app}
+      # Direct access mode - no authentication environment variables needed
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_REGION=${AWS_REGION:-us-east-1}

@@ -33,9 +33,11 @@ ENV PORT=5000
 RUN addgroup --system --gid 1001 nodejs
 RUN adduser --system --uid 1001 nextjs
 
-# Copy built application
+# Copy built application and source files needed for production
 COPY --from=builder /app/dist ./dist
 COPY --from=builder /app/package.json ./package.json
+COPY --from=builder /app/server ./server
+COPY --from=builder /app/shared ./shared
 COPY --from=deps /app/node_modules ./node_modules
 
 # Set correct permissions
