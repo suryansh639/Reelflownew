@@ -38,11 +38,10 @@ The application is designed with a mobile-first approach, featuring:
 
 ## Key Components
 
-### Authentication System
-- **Replit Auth Integration**: Uses OpenID Connect for secure authentication
-- **Session Management**: PostgreSQL-backed sessions with connect-pg-simple
-- **User Management**: Automatic user creation and profile management
-- **Protected Routes**: Authentication middleware for secure endpoints
+### Direct Access System
+- **No Authentication Required**: Users can directly access all videos and features
+- **Anonymous Interactions**: All user actions performed as anonymous user
+- **Educational Content Only**: Videos must pass AI validation to be approved
 
 ### Video Management
 - **Video Upload**: Multi-step upload process with metadata capture
@@ -91,7 +90,8 @@ The application is designed with a mobile-first approach, featuring:
 ### Core Framework Dependencies
 - **React Ecosystem**: React, React DOM, React Query
 - **Database**: Drizzle ORM, @neondatabase/serverless
-- **Authentication**: Replit Auth, OpenID Client, Passport
+- **Video Storage**: AWS S3 for video files
+- **AI Services**: Deepgram for transcription, Gemini for content analysis
 - **UI Components**: Radix UI primitives, Lucide React icons
 - **Validation**: Zod for schema validation
 - **Styling**: Tailwind CSS, class-variance-authority
@@ -110,8 +110,8 @@ The application is designed with a mobile-first approach, featuring:
 
 ### Environment Configuration
 - **Database**: Requires `DATABASE_URL` for PostgreSQL connection
-- **Authentication**: Requires Replit Auth environment variables
-- **Sessions**: Requires `SESSION_SECRET` for session security
+- **AWS Services**: Requires AWS credentials for S3 video storage
+- **AI Services**: Optional `DEEPGRAM_API_KEY` and `GEMINI_API_KEY` for educational validation
 
 ### Production Deployment
 - Single Node.js process serves both API and static files
@@ -139,11 +139,11 @@ The application is designed with a mobile-first approach, featuring:
 - **Optimistic Updates**: Immediate UI feedback with server reconciliation
 - **Cache Management**: Intelligent query invalidation strategies
 
-### Authentication Architecture
-- **Replit Integration**: Leverages platform authentication
-- **Session Security**: HTTP-only cookies with secure settings
-- **User Experience**: Automatic login redirects for expired sessions
-- **Data Protection**: All routes require authentication except landing page
+### Direct Access Architecture
+- **No Authentication**: Complete removal of all authentication systems
+- **Anonymous Usage**: All interactions performed as anonymous user
+- **Educational Content**: AI-powered validation ensures only educational videos
+- **Open Access**: All routes publicly accessible without restrictions
 
 ### Video Upload & Storage
 - **File Upload**: Multer middleware for handling video file uploads

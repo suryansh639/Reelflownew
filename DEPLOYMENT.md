@@ -24,9 +24,6 @@ Create a `.env` file in your project root with the following variables:
 DATABASE_URL=postgresql://postgres:your_db_password@db:5432/tiktok_app
 POSTGRES_PASSWORD=your_secure_database_password
 
-# Session Security
-SESSION_SECRET=your-super-secret-session-key-at-least-32-characters-long
-
 # AWS S3 Configuration
 AWS_ACCESS_KEY_ID=your_aws_access_key
 AWS_SECRET_ACCESS_KEY=your_aws_secret_key
@@ -34,10 +31,9 @@ AWS_REGION=us-east-1
 S3_BUCKET_NAME=your-s3-bucket-name
 CLOUDFRONT_DOMAIN=your-cloudfront-domain.cloudfront.net
 
-# Authentication (Replit Auth)
-REPLIT_DOMAINS=your-domain.com
-ISSUER_URL=https://replit.com/oidc
-REPL_ID=your-app-name
+# AI Services for Educational Content Validation
+DEEPGRAM_API_KEY=your_deepgram_api_key
+GEMINI_API_KEY=your_gemini_api_key
 
 # Application
 NODE_ENV=production
@@ -101,10 +97,8 @@ services:
     environment:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD}@db:5432/tiktok_app
-      - SESSION_SECRET=${SESSION_SECRET}
-      - REPLIT_DOMAINS=${REPLIT_DOMAINS}
-      - ISSUER_URL=${ISSUER_URL}
-      - REPL_ID=${REPL_ID}
+      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_REGION=${AWS_REGION}
@@ -138,18 +132,8 @@ services:
       retries: 5
     restart: unless-stopped
 
-  # Optional: Redis for session storage (recommended for production)
-  redis:
-    image: redis:7-alpine
-    networks:
-      - tiktok-network
-    restart: unless-stopped
-    volumes:
-      - redis_data:/data
-
 volumes:
   postgres_data:
-  redis_data:
 
 networks:
   tiktok-network:
@@ -324,10 +308,10 @@ services:
    - Check PostgreSQL service status
    - Review network connectivity
 
-3. **Session issues**
-   - Verify SESSION_SECRET is set
-   - Check authentication configuration
-   - Review cookie settings
+3. **AI service issues**
+   - Verify DEEPGRAM_API_KEY and GEMINI_API_KEY are set
+   - Check educational content validation pipeline
+   - Review API service status
 
 ### Support Commands
 

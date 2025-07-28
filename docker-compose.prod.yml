@@ -8,10 +8,8 @@ services:
     environment:
       - NODE_ENV=production
       - DATABASE_URL=postgresql://postgres:${POSTGRES_PASSWORD:-postgres}@db:5432/tiktok_app
-      - SESSION_SECRET=${SESSION_SECRET}
-      - REPLIT_DOMAINS=${REPLIT_DOMAINS}
-      - ISSUER_URL=${ISSUER_URL:-https://replit.com/oidc}
-      - REPL_ID=${REPL_ID}
+      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_REGION=${AWS_REGION:-us-east-1}
@@ -57,25 +55,8 @@ services:
         reservations:
           memory: 256M
 
-  # Optional: Redis for better session management in production
-  redis:
-    image: redis:7-alpine
-    command: redis-server --appendonly yes
-    volumes:
-      - redis_data:/data
-    networks:
-      - tiktok-network
-    restart: unless-stopped
-    deploy:
-      resources:
-        limits:
-          memory: 256M
-        reservations:
-          memory: 128M
-
 volumes:
   postgres_data:
-  redis_data:
 
 networks:
   tiktok-network:

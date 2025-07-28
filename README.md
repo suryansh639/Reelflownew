@@ -6,7 +6,7 @@ A modern TikTok-style video sharing platform built with React, TypeScript, Expre
 
 - 📱 Mobile-first TikTok-style interface
 - 🎥 Video upload and streaming
-- 👤 User authentication (Replit Auth)
+- 👤 Direct access without authentication
 - ❤️ Like and comment system
 - 👥 User profiles and following
 - 🔍 Discover page with trending content
@@ -27,8 +27,8 @@ A modern TikTok-style video sharing platform built with React, TypeScript, Expre
 - **Express.js** with TypeScript
 - **PostgreSQL** database
 - **Drizzle ORM** for type-safe database operations
-- **Replit Auth** for authentication
-- **Express Session** for session management
+- **Educational Content Validation** with Deepgram and Gemini AI
+- **AWS S3** for video storage
 
 ## Quick Start with Docker
 
@@ -69,7 +69,7 @@ npm install
 
 # Set up environment variables
 cp .env.example .env
-# Edit .env with your database and auth credentials
+# Edit .env with your database and AWS S3 credentials
 
 # Push database schema
 npm run db:push
@@ -89,14 +89,15 @@ npm run dev
 
 ### Required
 - `DATABASE_URL` - PostgreSQL connection string
-- `SESSION_SECRET` - Secret key for session encryption
-- `REPLIT_DOMAINS` - Allowed domains for authentication
-- `REPL_ID` - Replit application ID
+- `AWS_ACCESS_KEY_ID` - AWS access key for S3 storage
+- `AWS_SECRET_ACCESS_KEY` - AWS secret key for S3 storage
+- `S3_BUCKET_NAME` - S3 bucket name for video storage
 
-### Optional
+### Optional (for AI Features)
+- `DEEPGRAM_API_KEY` - For video transcription
+- `GEMINI_API_KEY` - For educational content analysis
 - `NODE_ENV` - Environment (development/production)
 - `PORT` - Server port (default: 5000)
-- `ISSUER_URL` - OIDC issuer URL
 
 ## Docker Commands
 

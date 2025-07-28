@@ -10,10 +10,8 @@ services:
     environment:
       - NODE_ENV=development
       - DATABASE_URL=postgresql://postgres:postgres@db:5432/tiktok_app
-      - SESSION_SECRET=dev-secret-key
-      - REPLIT_DOMAINS=localhost:5000
-      - ISSUER_URL=https://replit.com/oidc
-      - REPL_ID=tiktok-app
+      - DEEPGRAM_API_KEY=${DEEPGRAM_API_KEY}
+      - GEMINI_API_KEY=${GEMINI_API_KEY}
       - AWS_ACCESS_KEY_ID=${AWS_ACCESS_KEY_ID}
       - AWS_SECRET_ACCESS_KEY=${AWS_SECRET_ACCESS_KEY}
       - AWS_REGION=${AWS_REGION}
