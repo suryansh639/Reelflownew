@@ -1,6 +1,8 @@
 import express, { type Request, Response, NextFunction } from "express";
 import path from "path";
-import expressStaticGzip from "express-static-gzip";
+// At top of index.ts
+// eslint-disable-next-line @typescript-eslint/no-var-requires
+const expressStaticGzip = require('express-static-gzip');
 import { registerRoutes } from "./routes";
 import { setupVite, log } from "./vite";
 
