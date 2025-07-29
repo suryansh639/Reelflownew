@@ -1,15 +1,24 @@
-import express, { type Request, Response, NextFunction } from "express";
+import express, { type Request, type Response, type NextFunction } from "express";
 import path from "path";
-// At top of index.ts
-// eslint-disable-next-line @typescript-eslint/no-var-requires
-const expressStaticGzip = require('express-static-gzip');
-import { registerRoutes } from "./routes";
-import { setupVite, log } from "./vite";
+import { fileURLToPath } from "url";
+import compression from "compression";
+import { registerRoutes } from "./routes.js";
+import { setupVite, log } from "./vite.js";
+
+// Resolve __dirname in ES Module
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
+
+// DATABASE_URL check
+if (!process.env.DATABASE_URL) {
+  throw new Error("DATABASE_URL must be set. Did you forget to provision a database?");
+}
 
 const app = express();
 app.use(express.json());
 app.use(express.urlencoded({ extended: false }));
 
+// Request logger for /api
 app.use((req, res, next) => {
   const start = Date.now();
   const pathReq = req.path;
@@ -28,11 +37,7 @@ app.use((req, res, next) => {
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
+      if (logLine.length > 80) logLine = logLine.slice(0, 79) + "…";
       log(logLine);
     }
   });
@@ -40,15 +45,14 @@ app.use((req, res, next) => {
   next();
 });
 
+// Serve static files in production
 function serveStatic(app: express.Express) {
   const distPath = path.resolve(__dirname, "../client/dist");
 
-  app.use("/", expressStaticGzip(distPath, {
-    enableBrotli: true,
-    orderPreference: ['br', 'gz'],
-    setHeaders: (res, path) => {
-      res.setHeader("Cache-Control", "public, max-age=31536000");
-    }
+  app.use(compression()); // Gzip/Brotli compression
+  app.use(express.static(distPath, {
+    maxAge: "1y",
+    index: false,
   }));
 
   app.get("*", (_req, res) => {
@@ -59,6 +63,7 @@ function serveStatic(app: express.Express) {
 (async () => {
   const server = await registerRoutes(app);
 
+  // Error middleware
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
     const status = err.status || err.statusCode || 500;
     const message = err.message || "Internal Server Error";
@@ -66,18 +71,19 @@ function serveStatic(app: express.Express) {
     throw err;
   });
 
+  // Vite in development, static in production
   if (app.get("env") === "development") {
     await setupVite(app, server);
   } else {
-    serveStatic(app); // ✔️ Production path served correctly now
+    serveStatic(app);
   }
 
-  const port = parseInt(process.env.PORT || '5000', 10);
+  const port = parseInt(process.env.PORT || "5000", 10);
   server.listen({
     port,
     host: "0.0.0.0",
     reusePort: true,
   }, () => {
-    log(`serving on port ${port}`);
+    log(`✅ Server running on port ${port}`);
   });
 })();
