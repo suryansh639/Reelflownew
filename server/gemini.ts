@@ -1,6 +1,6 @@
 import { GoogleGenAI } from '@google/genai';
 
-const genAI = new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY! });
+const genAI = process.env.GEMINI_API_KEY ? new GoogleGenAI({ apiKey: process.env.GEMINI_API_KEY }) : null;
 
 export interface EducationalAnalysis {
   is_educational: boolean;
@@ -12,6 +12,10 @@ export interface EducationalAnalysis {
 export class GeminiService {
   static async analyzeEducationalContent(transcript: string): Promise<EducationalAnalysis> {
     try {
+      if (!genAI) {
+        throw new Error('Gemini API key not configured');
+      }
+      
       const model = 'gemini-2.5-flash';
 
       const prompt = `You are an expert at identifying educational video content.
@@ -86,7 +90,7 @@ Reply with a JSON object:
   
   static async testConnection(): Promise<boolean> {
     try {
-      if (!process.env.GEMINI_API_KEY) return false;
+      if (!genAI || !process.env.GEMINI_API_KEY) return false;
       
       const result = await genAI.models.generateContent({
         model: 'gemini-2.5-flash',

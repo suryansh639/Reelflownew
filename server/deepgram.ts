@@ -1,10 +1,14 @@
 import { createClient } from '@deepgram/sdk';
 
-const deepgram = createClient(process.env.DEEPGRAM_API_KEY!);
+const deepgram = process.env.DEEPGRAM_API_KEY ? createClient(process.env.DEEPGRAM_API_KEY) : null;
 
 export class DeepgramService {
   static async transcribeVideo(videoBuffer: Buffer, mimeType: string): Promise<string> {
     try {
+      if (!deepgram) {
+        throw new Error('Deepgram API key not configured');
+      }
+      
       const { result, error } = await deepgram.listen.prerecorded.transcribeFile(
         videoBuffer,
         {
