@@ -1,10 +1,9 @@
 import { useState } from "react";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { X, Heart, Send } from "lucide-react";
-import { CommentWithUser } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-// Direct access mode - no authentication needed
+import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -20,15 +19,20 @@ export default function CommentsSidebar({ videoId, isOpen, onClose }: CommentsSi
   const [newComment, setNewComment] = useState("");
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { isAuthenticated } = useAuth();
 
-  const { data: comments = [], isLoading } = useQuery<CommentWithUser[]>({
+  const { data: comments = [], isLoading } = useQuery<any[]>({
     queryKey: ["/api/videos", videoId, "comments"],
     enabled: isOpen,
   });
 
   const commentMutation = useMutation({
-    mutationFn: (content: string) => 
-      apiRequest("POST", `/api/videos/${videoId}/comments`, { content }),
+    mutationFn: (content: string) => {
+      if (!isAuthenticated) {
+        throw new Error("Please sign in to comment");
+      }
+      return apiRequest("POST", `/api/videos/${videoId}/comments`, { content });
+    },
     onSuccess: () => {
       setNewComment("");
       queryClient.invalidateQueries({ queryKey: ["/api/videos", videoId, "comments"] });
@@ -38,12 +42,20 @@ export default function CommentsSidebar({ videoId, isOpen, onClose }: CommentsSi
         description: "Your comment has been added.",
       });
     },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: "Failed to post comment",
-        variant: "destructive",
-      });
+    onError: (error: any) => {
+      if (error.message.includes("sign in")) {
+        toast({
+          title: "Authentication Required",
+          description: "Please sign in with Google to comment",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to post comment",
+          variant: "destructive",
+        });
+      }
     },
   });
 

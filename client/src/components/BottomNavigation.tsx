@@ -1,12 +1,16 @@
 import { useState } from "react";
 import { useLocation } from "wouter";
-import { Home, Compass, Plus, Inbox, User } from "lucide-react";
+import { Home, Compass, Plus, Inbox, User, LogIn } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { useAuth } from "@/hooks/useAuth";
+import { useToast } from "@/hooks/use-toast";
 import UploadModal from "./UploadModal";
 
 export default function BottomNavigation() {
   const [location, setLocation] = useLocation();
   const [showUpload, setShowUpload] = useState(false);
+  const { isAuthenticated, user } = useAuth();
+  const { toast } = useToast();
 
   const getActiveTab = () => {
     if (location === "/") return "home";
@@ -47,7 +51,17 @@ export default function BottomNavigation() {
           <Button
             variant="ghost"
             className="relative p-2"
-            onClick={() => setShowUpload(true)}
+            onClick={() => {
+              if (!isAuthenticated) {
+                toast({
+                  title: "Authentication Required",
+                  description: "Please sign in with Google to upload videos",
+                  variant: "destructive",
+                });
+                return;
+              }
+              setShowUpload(true);
+            }}
           >
             <div className="w-12 h-8 bg-white rounded-lg flex items-center justify-center">
               <Plus className="w-5 h-5 text-black" />
@@ -70,10 +84,20 @@ export default function BottomNavigation() {
             className={`flex flex-col items-center space-y-1 py-3 px-2 ${
               activeTab === "profile" ? "text-white" : "text-tiktok-gray"
             }`}
-            onClick={() => setLocation("/profile")}
+            onClick={() => {
+              if (!isAuthenticated) {
+                window.location.href = "/api/auth/google";
+                return;
+              }
+              setLocation("/profile");
+            }}
           >
-            <User className="w-6 h-6" />
-            <span className="text-xs">Profile</span>
+            {isAuthenticated ? (
+              <User className="w-6 h-6" />
+            ) : (
+              <LogIn className="w-6 h-6" />
+            )}
+            <span className="text-xs">{isAuthenticated ? "Profile" : "Sign In"}</span>
           </Button>
         </div>
       </nav>

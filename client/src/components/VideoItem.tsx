@@ -4,10 +4,10 @@ import { Heart, MessageCircle, Share, MoreHorizontal, Music, Play, Pause } from 
 import { VideoWithUser } from "@shared/schema";
 import { apiRequest } from "@/lib/queryClient";
 import { useToast } from "@/hooks/use-toast";
-// Direct access mode - no authentication needed
+import { useAuth } from "@/hooks/useAuth";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-// import CommentsSidebar from "./CommentsSidebar";
+import CommentsSidebar from "./CommentsSidebar";
 
 interface VideoItemProps {
   video: VideoWithUser;
@@ -27,15 +27,20 @@ export default function VideoItem({ video, isActive }: VideoItemProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const { isAuthenticated } = useAuth();
   
   const [videoUrl, setVideoUrl] = useState<string>(video.videoUrl);
   const [videoError, setVideoError] = useState<string>('');
   const [loadingVideo, setLoadingVideo] = useState(false);
 
   const likeMutation = useMutation({
-    mutationFn: () => apiRequest("POST", `/api/videos/${video.id}/like`),
+    mutationFn: () => {
+      if (!isAuthenticated) {
+        throw new Error("Please sign in to like videos");
+      }
+      return apiRequest("POST", `/api/videos/${video.id}/like`);
+    },
     onSuccess: (response) => {
-      const data = response.json();
       setLiked(!liked);
       setLikeCount(prev => liked ? prev - 1 : prev + 1);
       queryClient.invalidateQueries({ queryKey: ["/api/videos"] });
@@ -56,13 +61,20 @@ export default function VideoItem({ video, isActive }: VideoItemProps) {
         }
       }
     },
-    onError: (error) => {
-      // Direct access mode - no authentication error handling needed
-      toast({
-        title: "Error",
-        description: "Failed to like video",
-        variant: "destructive",
-      });
+    onError: (error: any) => {
+      if (error.message.includes("sign in")) {
+        toast({
+          title: "Authentication Required",
+          description: "Please sign in with Google to like videos",
+          variant: "destructive",
+        });
+      } else {
+        toast({
+          title: "Error",
+          description: "Failed to like video",
+          variant: "destructive",
+        });
+      }
     },
   });
 

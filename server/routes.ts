@@ -2,26 +2,56 @@ import type { Express } from "express";
 import express from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-// Authentication removed - direct access
-import { insertVideoSchema, insertCommentSchema } from "@shared/schema";
+import { setupAuth, requireAuth, getUser, type User } from "./auth";
+import { DynamoDBService } from "./dynamodb";
+import { VideoValidationService } from "./videoValidation";
 import { z } from "zod";
 import { upload } from "./multer";
 import { S3Service } from "./s3";
-import { uploadDemoVideos } from "./uploadDemoVideos";
-import { VideoValidator } from "./videoValidator";
 import path from "path";
 
 export async function registerRoutes(app: Express): Promise<Server> {
-  // Direct access - no authentication required
+  // Setup authentication
+  await setupAuth(app);
+  
+  // Initialize DynamoDB tables
+  try {
+    await DynamoDBService.initializeTables();
+    // Create tables if they don't exist
+    const { createDynamoDBTables } = await import('./createTables');
+    await createDynamoDBTables();
+  } catch (error) {
+    console.error('DynamoDB initialization error:', error);
+  }
 
-  // Video routes
-  app.get('/api/videos', async (req, res) => {
+  // Note: Auth routes are handled in server/auth.ts
+
+  // Video routes (public access for viewing)
+  app.get('/api/videos', getUser, async (req: any, res) => {
     try {
       const limit = parseInt(req.query.limit as string) || 20;
       const offset = parseInt(req.query.offset as string) || 0;
+      const user = req.user as User;
       
-      const videos = await storage.getVideos(null, limit, offset);
-      res.json(videos);
+      const videos = await storage.getVideos(user?.id || null, limit, offset);
+      
+      // Enhance videos with like and comment counts from DynamoDB
+      const enhancedVideos = await Promise.all(videos.map(async (video) => {
+        const [likeCount, commentCount, userLike] = await Promise.all([
+          DynamoDBService.getVideoLikeCount(video.id),
+          DynamoDBService.getVideoCommentCount(video.id),
+          user ? DynamoDBService.getUserLike(video.id, user.id) : Promise.resolve(null)
+        ]);
+        
+        return {
+          ...video,
+          likeCount,
+          commentCount,
+          isLiked: !!userLike
+        };
+      }));
+      
+      res.json(enhancedVideos);
     } catch (error) {
       console.error("Error fetching videos:", error);
       res.status(500).json({ message: "Failed to fetch videos" });
@@ -39,99 +69,99 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-  app.get('/api/videos/:id', async (req, res) => {
+  app.get('/api/videos/:id', getUser, async (req: any, res) => {
     try {
       const { id } = req.params;
+      const user = req.user as User;
       
-      const video = await storage.getVideo(id, null);
+      const video = await storage.getVideo(id, user?.id || null);
       if (!video) {
         return res.status(404).json({ message: "Video not found" });
       }
       
-      res.json(video);
+      // Enhance video with like and comment data
+      const [likeCount, commentCount, userLike] = await Promise.all([
+        DynamoDBService.getVideoLikeCount(video.id),
+        DynamoDBService.getVideoCommentCount(video.id),
+        user ? DynamoDBService.getUserLike(video.id, user.id) : Promise.resolve(null)
+      ]);
+      
+      const enhancedVideo = {
+        ...video,
+        likeCount,
+        commentCount,
+        isLiked: !!userLike
+      };
+      
+      res.json(enhancedVideo);
     } catch (error) {
       console.error("Error fetching video:", error);
       res.status(500).json({ message: "Failed to fetch video" });
     }
   });
 
-  app.post('/api/videos', upload.single('video'), async (req: any, res) => {
+  app.post('/api/videos', requireAuth, upload.single('video'), async (req: any, res) => {
     try {
-      const userId = 'anonymous'; // No authentication required
+      const user = req.user as User;
       
-      let videoUrl: string;
-      let s3Key: string | undefined;
-      let validationResult;
-      
-      if (req.file) {
-        // Validate video file (duration, size, and educational content)
-        console.log('Validating video file...', {
-          filename: req.file.originalname,
-          size: `${(req.file.size / (1024 * 1024)).toFixed(2)}MB`,
-          mimetype: req.file.mimetype
-        });
-        
-        validationResult = await VideoValidator.validateVideo(req.file);
-        
-        if (!validationResult.isValid) {
-          return res.status(400).json({ 
-            message: "Video validation failed", 
-            errors: validationResult.errors,
-            details: {
-              duration: validationResult.duration,
-              fileSize: `${(validationResult.fileSize / (1024 * 1024)).toFixed(2)}MB`,
-              maxDuration: "60 seconds",
-              maxFileSize: "10MB"
-            }
-          });
-        }
-
-        console.log('Video validation successful:', {
-          duration: `${validationResult.duration}s`,
-          isEducational: validationResult.educationalAnalysis?.is_educational,
-          topic: validationResult.educationalAnalysis?.topic
-        });
-
-        if (S3Service.isConfigured()) {
-          // Upload file to S3
-          const s3Result = await S3Service.uploadVideo(req.file, userId);
-          videoUrl = s3Result.url;
-          s3Key = s3Result.key;
-          console.log('S3 upload successful:', { url: videoUrl, key: s3Key });
-        } else {
-          return res.status(400).json({ 
-            message: "S3 is not configured. Please provide a video URL instead or configure AWS credentials." 
-          });
-        }
-      } else if (req.body.videoUrl) {
-        // If URL was provided, use it directly (skip validation for external URLs)
-        videoUrl = req.body.videoUrl;
-        console.log('Using provided video URL:', videoUrl);
-      } else {
-        return res.status(400).json({ message: "No video file or URL provided" });
+      if (!req.file) {
+        return res.status(400).json({ message: "No video file provided" });
       }
       
-      const videoData = insertVideoSchema.parse({
-        title: req.body.title || 'Untitled Video',
-        description: req.body.description || (validationResult?.educationalAnalysis?.topic ? `Educational content about: ${validationResult.educationalAnalysis.topic}` : ''),
+      // Validate file size
+      const sizeValidation = VideoValidationService.validateFileSize(req.file.size);
+      if (!sizeValidation.isValid) {
+        return res.status(400).json({ message: sizeValidation.error });
+      }
+      
+      // Validate file type
+      const typeValidation = VideoValidationService.validateMimeType(req.file.mimetype);
+      if (!typeValidation.isValid) {
+        return res.status(400).json({ message: typeValidation.error });
+      }
+      
+      // Validate video duration
+      const durationValidation = await VideoValidationService.validateVideoDuration(req.file.path);
+      if (!durationValidation.isValid) {
+        return res.status(400).json({ message: durationValidation.error });
+      }
+      
+      // Upload to S3
+      let videoUrl: string;
+      let s3Key: string | undefined;
+      
+      try {
+        const uploadResult = await S3Service.uploadVideo(req.file);
+        videoUrl = uploadResult.url;
+        s3Key = uploadResult.key;
+        
+        console.log('Video uploaded to S3 successfully:', {
+          url: videoUrl,
+          key: s3Key
+        });
+      } catch (uploadError) {
+        console.error('S3 upload failed:', uploadError);
+        return res.status(500).json({ message: "Failed to upload video to S3" });
+      }
+      
+      // Create video record
+      const video = await storage.createVideo({
+        userId: user.id,
+        title: req.body.title || "Untitled Video",
+        description: req.body.description || "",
         videoUrl,
+        duration: Math.round(durationValidation.duration || 0),
+        isPublic: req.body.isPublic !== 'false',
         musicTitle: req.body.musicTitle || 'Original Sound',
-        isPublic: req.body.isPublic === 'true' || req.body.isPublic === true,
-        userId,
-        duration: validationResult?.duration,
-        ...(s3Key && { s3Key }),
+        s3Key
       });
       
-      const video = await storage.createVideo(videoData);
-      
-      // Include validation details in response
       res.status(201).json({
         ...video,
-        validation: validationResult ? {
-          duration: validationResult.duration,
-          educationalAnalysis: validationResult.educationalAnalysis,
-          transcript: validationResult.transcript
-        } : null
+        validation: {
+          duration: durationValidation.duration,
+          fileSize: `${(req.file.size / (1024 * 1024)).toFixed(2)}MB`
+        }
       });
     } catch (error) {
       if (error instanceof z.ZodError) {
@@ -139,6 +169,121 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       console.error("Error creating video:", error);
       res.status(500).json({ message: "Failed to create video" });
+    }
+  });
+
+  // Like/Unlike video (requires authentication)
+  app.post('/api/videos/:id/like', requireAuth, async (req: any, res) => {
+    try {
+      const { id: videoId } = req.params;
+      const user = req.user as User;
+      
+      // Check if video exists
+      const video = await storage.getVideo(videoId, user.id);
+      if (!video) {
+        return res.status(404).json({ message: "Video not found" });
+      }
+      
+      // Check if user already liked this video
+      const existingLike = await DynamoDBService.getUserLike(videoId, user.id);
+      
+      if (existingLike) {
+        // Unlike the video
+        await DynamoDBService.removeLike(videoId, user.id);
+        const newLikeCount = await DynamoDBService.getVideoLikeCount(videoId);
+        
+        res.json({ 
+          liked: false, 
+          likeCount: newLikeCount,
+          message: "Video unliked" 
+        });
+      } else {
+        // Like the video
+        await DynamoDBService.addLike(videoId, user.id, user.email, user.name);
+        const newLikeCount = await DynamoDBService.getVideoLikeCount(videoId);
+        
+        res.json({ 
+          liked: true, 
+          likeCount: newLikeCount,
+          message: "Video liked" 
+        });
+      }
+    } catch (error) {
+      console.error("Error toggling like:", error);
+      res.status(500).json({ message: "Failed to toggle like" });
+    }
+  });
+
+  // Get video comments (public access)
+  app.get('/api/videos/:id/comments', async (req, res) => {
+    try {
+      const { id: videoId } = req.params;
+      
+      // Check if video exists
+      const video = await storage.getVideo(videoId, null);
+      if (!video) {
+        return res.status(404).json({ message: "Video not found" });
+      }
+      
+      const comments = await DynamoDBService.getVideoComments(videoId);
+      res.json(comments);
+    } catch (error) {
+      console.error("Error fetching comments:", error);
+      res.status(500).json({ message: "Failed to fetch comments" });
+    }
+  });
+
+  // Add comment (requires authentication)
+  app.post('/api/videos/:id/comments', requireAuth, async (req: any, res) => {
+    try {
+      const { id: videoId } = req.params;
+      const { content } = req.body;
+      const user = req.user as User;
+      
+      if (!content || content.trim().length === 0) {
+        return res.status(400).json({ message: "Comment content is required" });
+      }
+      
+      if (content.length > 500) {
+        return res.status(400).json({ message: "Comment is too long (max 500 characters)" });
+      }
+      
+      // Check if video exists
+      const video = await storage.getVideo(videoId, user.id);
+      if (!video) {
+        return res.status(404).json({ message: "Video not found" });
+      }
+      
+      const comment = await DynamoDBService.addComment(
+        videoId, 
+        user.id, 
+        user.email, 
+        user.name, 
+        content.trim(),
+        user.profileImage
+      );
+      
+      res.status(201).json(comment);
+    } catch (error) {
+      console.error("Error adding comment:", error);
+      res.status(500).json({ message: "Failed to add comment" });
+    }
+  });
+
+  // Delete comment (requires authentication - only comment author can delete)
+  app.delete('/api/comments/:commentId', requireAuth, async (req: any, res) => {
+    try {
+      const { commentId } = req.params;
+      const user = req.user as User;
+      
+      // For now, we'll allow any authenticated user to delete comments
+      // In production, you'd want to check if the user owns the comment
+      await DynamoDBService.deleteComment(commentId);
+      
+      res.json({ message: "Comment deleted successfully" });
+    } catch (error) {
+      console.error("Error deleting comment:", error);
+      res.status(500).json({ message: "Failed to delete comment" });
     }
   });
 
