@@ -16,9 +16,10 @@ let s3Client: S3Client | null = null;
 let cloudFrontClient: CloudFrontClient | null = null;
 let BUCKET_NAME: string | null = null;
 
-if (isS3Configured) {
+// Always initialize S3 client with AWS credentials if available
+if (process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY) {
   s3Client = new S3Client({
-    region: process.env.AWS_REGION!,
+    region: process.env.AWS_REGION || 'ap-south-1',
     credentials: {
       accessKeyId: process.env.AWS_ACCESS_KEY_ID!,
       secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY!,
@@ -33,7 +34,7 @@ if (isS3Configured) {
     },
   });
 
-  BUCKET_NAME = process.env.S3_BUCKET_NAME!.trim();
+  BUCKET_NAME = 'tiktoknew'; // Your specific bucket name
 }
 // CloudFront domain from your distribution E2NL5E3ZOA6QSV
 const CLOUDFRONT_DOMAIN = process.env.CLOUDFRONT_DOMAIN || 'e2nl5e3zoa6qsv.cloudfront.net';
@@ -41,7 +42,7 @@ const CLOUDFRONT_DOMAIN = process.env.CLOUDFRONT_DOMAIN || 'e2nl5e3zoa6qsv.cloud
 export class S3Service {
   // Check if S3 is configured
   static isConfigured(): boolean {
-    return isS3Configured;
+    return !!(s3Client && BUCKET_NAME);
   }
 
   // Upload video to S3
@@ -366,7 +367,7 @@ export class S3Service {
           if (object.Key && object.Key.match(/\.(mp4|mov|avi|mkv|webm)$/i)) {
             videos.push({
               key: object.Key,
-              url: `https://${BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${object.Key}`,
+              url: `https://${BUCKET_NAME}.s3.ap-south-1.amazonaws.com/${object.Key}`,
               size: object.Size,
               lastModified: object.LastModified
             });
